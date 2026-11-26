@@ -1,0 +1,3087 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vvvv gamma — UX-Prototyp (Ist vs. Vorschlag)</title>
+<style>
+  :root{
+    --bg:#1e1e1e; --panel:#252526; --panel2:#2d2d30; --panel3:#333336;
+    --border:#3f3f46; --border2:#4d4d55;
+    --text:#d4d4d4; --muted:#9d9da6; --faint:#7a7a82;
+    --accent:#f0a232; --accent-dim:#8a5f1e;
+    --blue:#569cd6; --green:#6a9955; --red:#f14c4c; --purple:#c586c0;
+    --field:#1a1a1a; --field-bd:#3f3f46;   /* Eingabefelder, Canvas */
+    --hot:0 0 0 2px var(--accent), 0 0 14px 2px rgba(240,162,50,.55);
+    font-size:13px;
+  }
+  /* Themes (Settings-Fenster) — wirken auf den gesamten Prototyp */
+  body[data-theme=light]{
+    --bg:#e3e3e1; --panel:#efefef; --panel2:#f7f7f7; --panel3:#e0e0e0;
+    --border:#c9c9c9; --border2:#b2b2b2;
+    --text:#1e1e1e; --muted:#55555c; --faint:#77777c;
+    --field:#ffffff; --field-bd:#c9c9c9;
+    --accent:#c47b16; --accent-dim:#e8c890;
+    --hot:0 0 0 2px var(--accent), 0 0 14px 2px rgba(196,123,22,.45);
+  }
+  body[data-theme=hc]{
+    --bg:#000; --panel:#000; --panel2:#0a0a0a; --panel3:#141414;
+    --border:#9a9a9a; --border2:#cfcfcf;
+    --text:#ffffff; --muted:#e6e6e6; --faint:#c9c9c9;
+    --field:#000; --field-bd:#9a9a9a;
+    --accent:#ffd400; --accent-dim:#5a4a00;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--bg); color:var(--text);
+       font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+       height:100vh; display:flex; flex-direction:column; overflow:hidden}
+
+  /* ---------- Topbar ---------- */
+  .topbar{display:flex; align-items:center; gap:16px; padding:7px 14px;
+          background:var(--panel); border-bottom:1px solid var(--border); flex:0 0 auto}
+  .logo{font-weight:600; letter-spacing:.4px}
+  .logo b{color:var(--accent)}
+  .seg{display:flex; background:var(--panel2); border:1px solid var(--border); overflow:hidden}
+  .seg button{background:none; border:none; color:var(--muted); padding:5px 14px; cursor:pointer; font-size:12px}
+  .seg button.on{background:var(--accent); color:#1e1e1e; font-weight:600}
+  .seg button:not(.on):hover{background:var(--panel3); color:var(--text)}
+  .flowbar{margin-left:auto; display:none; align-items:center; gap:10px; background:var(--panel2);
+           border:1px solid var(--accent-dim); padding:5px 12px; font-size:12px}
+  .flowbar.on{display:flex}
+  .flowbar .steps{color:var(--accent); font-weight:600}
+  .flowbar .hint{color:var(--text)}
+  .flowbar button{background:none; border:1px solid var(--border); color:var(--muted);
+                  padding:2px 8px; cursor:pointer; font-size:11px}
+  .flowbar button:hover{color:var(--text); border-color:var(--border2)}
+
+  /* ---------- Layout ---------- */
+  .main{display:flex; flex:1 1 auto; min-height:0}
+  .sidebar{width:230px; flex:0 0 auto; background:var(--panel); border-right:1px solid var(--border);
+           padding:12px 0; overflow-y:auto}
+  .side-group{padding:0 14px; margin:14px 0 6px; font-size:10px; text-transform:uppercase;
+              letter-spacing:1.2px; color:var(--faint)}
+  .side-group:first-child{margin-top:0}
+  .nav{display:block; width:100%; text-align:left; background:none; border:none; color:var(--muted);
+       padding:7px 14px; cursor:pointer; font-size:12.5px; border-left:2px solid transparent}
+  .nav:hover{background:var(--panel2); color:var(--text)}
+  .nav.on{background:var(--panel2); color:var(--text); border-left-color:var(--accent); font-weight:600}
+  .nav .tag{font-size:9.5px; padding:1px 5px; margin-left:6px; vertical-align:1px}
+  .tag.neu{background:#2e4a36; color:#9fd6af}
+  .nav.flow{color:var(--blue)}
+  .nav.flow:hover{background:#26313a}
+  .nav.flow.on{background:#26313a; color:var(--blue); border-left-color:var(--blue)}
+
+  .stage{flex:1 1 auto; display:flex; min-width:0}
+  .viewport{flex:1 1 auto; overflow-y:auto; padding:24px 28px; min-width:0}
+  .notes{width:300px; flex:0 0 auto; background:var(--panel); border-left:1px solid var(--border);
+         padding:16px; overflow-y:auto; font-size:12.5px; line-height:1.55}
+  .notes h3{font-size:13px; margin-bottom:4px; color:var(--accent)}
+  .notes .sub{color:var(--faint); font-size:11px; margin-bottom:14px}
+  .notes p{margin-bottom:10px; color:var(--muted)}
+  .notes p b{color:var(--text); font-weight:600}
+  .legend{margin-top:14px; padding-top:12px; border-top:1px solid var(--border);
+          font-size:11px; color:var(--faint); line-height:1.6}
+
+  /* ---------- Screen frame ---------- */
+  .screen-title{font-size:15px; font-weight:600; margin-bottom:3px}
+  .screen-sub{color:var(--muted); font-size:12px; margin-bottom:16px}
+  .win{background:var(--panel2); border:1px solid var(--border2); overflow:hidden;
+       box-shadow:0 8px 30px rgba(0,0,0,.35); max-width:1180px}
+  .win-title{display:flex; align-items:center; gap:8px; padding:6px 12px;
+             background:var(--panel3); border-bottom:1px solid var(--border); font-size:12px; color:var(--muted)}
+  .win-title .name{color:var(--text); font-weight:600}
+  /* Schließen rechts oben (Windows-Stil statt Mac-Punkte) */
+  .wclose{margin-left:auto; background:none; border:1px solid transparent; color:var(--muted);
+          cursor:pointer; font-size:12px; line-height:1; padding:2px 7px; font-family:inherit}
+  .wclose:hover{color:var(--red); border-color:var(--border2); background:var(--panel2)}
+  .win-body{padding:0}
+
+  /* ---------- vvvv-Nachbau: Menü, Canvas, Panel ---------- */
+  .mbar{display:flex; gap:0; padding:0; background:var(--panel3); border-bottom:1px solid var(--border); font-size:11.5px; color:var(--muted)}
+  .mbar span{padding:5px 10px; cursor:pointer}
+  .mbar span:hover{background:#3f3f46; color:var(--text)}
+  .app{display:flex; min-height:420px; position:relative}
+  .canvas{flex:1 1 auto; background:#1a1a1a; border-right:1px solid var(--border); padding:14px; position:relative; min-width:0}
+  .canvas .empty{color:var(--faint); font-size:12px; text-align:center; padding-top:80px}
+  .canvas .node{display:inline-block; background:#333336; border:1px solid #4d4d55; color:#cfd0d5;
+                padding:4px 10px; font-size:11px; margin:4px}
+  .canvas .docname{position:absolute; top:8px; left:12px; font-size:10.5px; color:var(--faint)}
+  .dock{width:290px; flex:0 0 auto; background:var(--panel); display:flex; flex-direction:column; min-width:0}
+  .dock-head{padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600;
+             display:flex; flex-wrap:wrap; gap:1px 6px; align-items:baseline}
+  .dock-head .sub{color:var(--faint); font-weight:400; font-size:10.5px; margin-left:auto}
+  .dock-body{padding:8px; flex:1 1 auto; font-size:11.5px; overflow-y:auto}
+  .btabs{display:flex; border-top:1px solid var(--border); background:var(--panel3)}
+  .btabs button{flex:1 1 auto; background:none; border:none; border-right:1px solid var(--border);
+                color:var(--muted); padding:6px 4px; font-size:11.5px; cursor:pointer}
+  .btabs button:last-child{border-right:none}
+  .btabs button.on{background:var(--panel); color:var(--text); font-weight:600; box-shadow:inset 0 2px 0 var(--accent)}
+  .btabs button:not(.on):hover{background:#3f3f46; color:var(--text)}
+  .statusbar{display:flex; gap:16px; padding:4px 10px; background:var(--panel3); border-top:1px solid var(--border);
+             font-size:10.5px; color:var(--faint)}
+
+  .row{display:flex; align-items:center; gap:7px; padding:5px 7px; color:var(--muted);
+       font-size:11.5px; border:1px solid transparent}
+  .row:hover{background:var(--panel2)}
+  .row .ico{width:14px; text-align:center; color:var(--faint)}
+  .row.ok .ico{color:var(--green)}
+  .row.miss{background:rgba(241,76,76,.09); border-color:rgba(241,76,76,.4); color:#e8a49c}
+  .row.miss .ico{color:var(--red)}
+  .row .meta{margin-left:auto; color:var(--faint); font-size:10.5px; white-space:nowrap}
+  .row .upd{background:rgba(86,156,214,.15); color:var(--blue); font-size:9.5px; padding:1px 6px; margin-left:6px}
+  .row .star{cursor:pointer; color:var(--faint)}
+  .row .star.on{color:var(--accent)}
+  .sec{color:var(--faint); font-size:10px; text-transform:uppercase; letter-spacing:.8px; padding:8px 7px 3px}
+  .emptybox{border:1px dashed var(--border2); padding:16px 12px; text-align:center;
+            color:var(--faint); font-size:11.5px; line-height:1.6; margin:6px 0}
+  .emptybox b{color:var(--muted); display:block; margin-bottom:3px; font-size:12px}
+
+  .btn{background:var(--panel3); border:1px solid var(--border2); color:var(--text);
+       padding:4px 10px; font-size:11.5px; cursor:pointer; font-family:inherit}
+  .btn:hover{border-color:var(--accent-dim); color:var(--accent)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#1e1e1e; font-weight:600}
+  .btn.primary:hover{filter:brightness(1.08); color:#1e1e1e}
+  .btn.ghost{background:none}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.sm{padding:2px 8px; font-size:10.5px}
+  .btnrow{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap}
+
+  /* ---------- Browser (Neu) ---------- */
+  .tabs{display:flex; background:var(--panel3); border-bottom:1px solid var(--border); padding:0 6px}
+  .tab{background:none; border:none; color:var(--muted); padding:9px 16px; cursor:pointer; font-size:12.5px;
+       border-bottom:2px solid transparent; display:flex; align-items:center; gap:6px; font-family:inherit}
+  .tab:hover{color:var(--text)}
+  .tab.on{color:var(--accent); border-bottom-color:var(--accent); font-weight:600; background:var(--panel2)}
+  .tab .bdg{font-size:9px; background:rgba(240,162,50,.18); color:var(--accent); padding:1px 5px}
+  .tab .bdg.blue{background:rgba(86,156,214,.18); color:var(--blue)}
+  .tabpane{display:none; padding:16px}
+  .tabpane.on{display:block}
+  .h2{font-size:13px; font-weight:600; margin:14px 0 8px}
+  .h2:first-child{margin-top:0}
+  .cards{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+  .card{background:var(--panel); border:1px solid var(--border); padding:11px 12px; font-size:11.5px}
+  .card .t{font-weight:600; color:var(--text); font-size:12px; margin-bottom:3px}
+  .card .d{color:var(--muted); line-height:1.5}
+  .card.click{cursor:pointer}
+  .card.click:hover{border-color:var(--accent-dim)}
+  .statusline{display:flex; align-items:center; gap:10px; background:rgba(86,156,214,.1);
+              border:1px solid rgba(86,156,214,.35); padding:9px 12px;
+              font-size:12px; color:#b9d9f3; margin-bottom:14px}
+  .statusline b{color:var(--blue)}
+  .statusline .btn{margin-left:auto}
+
+  .notice{display:flex; gap:9px; align-items:center; background:rgba(86,156,214,.08);
+          border:1px solid rgba(86,156,214,.3); padding:9px 12px;
+          font-size:11.5px; color:#b9d9f3; margin-bottom:10px; line-height:1.5}
+  .notice .btn{margin-left:auto; flex:0 0 auto}
+  .notice.warn{background:rgba(240,162,50,.08); border-color:rgba(240,162,50,.3); color:#e8c890}
+  .notice.good{background:rgba(106,153,85,.1); border-color:rgba(106,153,85,.4); color:#a8d8a0}
+  .notice.bad{background:rgba(241,76,76,.09); border-color:rgba(241,76,76,.35); color:#e8a49c}
+
+  .prog{height:4px; background:var(--panel3); overflow:hidden; margin-top:6px}
+  .prog i{display:block; height:100%; width:0%; background:var(--accent); transition:width .25s}
+  .extrow{display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid var(--border);
+          background:var(--panel); margin-bottom:8px; font-size:12px}
+  .extrow .ico{font-size:15px; width:20px; text-align:center; color:var(--faint)}
+  .extrow .info{flex:1 1 auto; min-width:0}
+  .extrow .info .t{font-weight:600}
+  .extrow .info .d{color:var(--muted); font-size:11px; margin-top:1px}
+  .extrow .state{flex:0 0 auto; text-align:right; font-size:11px; color:var(--muted)}
+  .extrow.done{border-color:rgba(106,153,85,.45)}
+  .extrow.fail{border-color:rgba(241,76,76,.45)}
+  .spin{display:inline-block; width:11px; height:11px; border:2px solid var(--accent-dim);
+        border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite; vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .anchor{color:var(--blue); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;
+          background:none; border:none; font-size:11.5px; padding:0; font-family:inherit}
+  .anchor:hover{color:var(--accent)}
+
+  /* Help: Filter-Liste links + Liste rechts (Layout wie Ist) */
+  .hb:not(.backlink){display:flex; min-height:340px}
+  .hb-nav{width:200px; flex:0 0 auto; border-right:1px solid var(--border); padding:10px 0; background:var(--panel)}
+  .hb-nav .grp{padding:6px 14px 3px; font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--faint)}
+  .hb-nav button{display:flex; width:100%; text-align:left; background:none; border:none; color:var(--muted);
+                 padding:6px 14px; font-size:12px; cursor:pointer; border-left:2px solid transparent; font-family:inherit;
+                 align-items:center; gap:6px}
+  .hb-nav button:hover{background:var(--panel2); color:var(--text)}
+  .hb-nav button.on{background:var(--panel2); color:var(--text); border-left-color:var(--accent); font-weight:600}
+  .hb-nav button .n{margin-left:auto; font-size:9.5px; color:var(--faint)}
+  .hb-nav button .neu{font-size:8.5px; background:rgba(240,162,50,.2); color:var(--accent); padding:0 4px}
+  .hb-nav a.gw{color:var(--blue); text-decoration:none}
+  .hb-nav a.gw:hover{color:var(--accent); text-decoration:underline}
+  .hb-main{flex:1 1 auto; padding:12px 14px; min-width:0}
+  .hb-toolbar{display:flex; gap:8px; align-items:center; margin-bottom:10px; font-size:11.5px; color:var(--muted)}
+  .hb-toolbar .sp{margin-left:auto; color:var(--faint); font-size:10.5px}
+  .hl{display:flex; gap:10px; padding:8px 10px; border:1px solid var(--border);
+      background:var(--panel); margin-bottom:6px; font-size:11.5px; align-items:baseline}
+  .hl .badge{flex:0 0 auto; font-size:9px; font-weight:700; padding:2px 6px; text-transform:uppercase; letter-spacing:.5px}
+  .badge.howto{background:#3a3550; color:#b9a7e8}
+  .badge.tut{background:#2e4a36; color:#9fd6af}
+  .badge.video{background:#4a3a20; color:#f0c27a}
+  .badge.ref{background:#26384a; color:#9fc7ea}
+  .badge.ex{background:#40323a; color:#e8a4c0}
+  .hl .t{color:var(--text); font-weight:600; flex:1 1 auto}
+  .hl .t a{color:var(--blue); text-decoration:none}
+  .hl .t a:hover{color:var(--accent); text-decoration:underline}
+  .hl .m{color:var(--faint); font-size:10.5px; flex:0 0 auto}
+  .hl .go{flex:0 0 auto; color:var(--faint); font-size:10.5px}
+  .packhdr{display:flex; align-items:center; gap:8px; margin:14px 0 6px; font-size:12px; font-weight:600; color:var(--text)}
+  .packhdr .m{font-weight:400; color:var(--faint); font-size:10.5px}
+  .packhdr .btn{margin-left:auto}
+
+  .segment{display:flex; gap:2px; background:var(--panel3); padding:3px; margin-bottom:12px; width:fit-content}
+  .segment button{background:none; border:none; color:var(--muted); padding:5px 16px; cursor:pointer; font-size:12px; font-family:inherit}
+  .segment button.on{background:var(--panel); color:var(--text); font-weight:600; box-shadow:0 1px 4px rgba(0,0,0,.3)}
+
+  /* ---------- Chips / Filterzeile (Packs, wie im Ist-Design) ---------- */
+  .chiprow{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px; font-size:11.5px}
+  .chip{border:1px solid var(--border2); background:none; color:var(--muted); padding:3px 10px;
+        cursor:pointer; font-size:11.5px; font-family:inherit}
+  .chip:hover{color:var(--text); border-color:var(--accent-dim)}
+  .chip.on{background:var(--panel3); color:var(--text); border-color:var(--accent); font-weight:600}
+  .chiprow .sp{margin-left:auto; color:var(--faint); font-size:10.5px}
+  .chiprow select, .fsearch{background:var(--field); border:1px solid var(--field-bd); color:var(--text);
+        font-size:11.5px; padding:4px 7px; font-family:inherit}
+  .fsearch{flex:1 1 auto; min-width:150px}
+  .psel{background:var(--field); border:1px solid var(--field-bd); color:var(--text); font-size:11px; padding:3px 6px; font-family:inherit}
+  .pbar{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-size:11.5px}
+  .pbar .fsearch{flex:1 1 180px}
+  .pstable{font-size:10.5px; color:var(--faint); display:flex; gap:4px; align-items:center; cursor:pointer}
+  .sect{display:flex; align-items:center; gap:7px; margin:12px 0 5px; font-size:11.5px; font-weight:600; color:var(--text); cursor:pointer; user-select:none}
+  .sect .car{color:var(--faint); width:10px}
+  .sect .cnt{font-weight:400; color:var(--faint); font-size:10.5px}
+  .tdot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px}
+  .tdot.tut{background:#9fd6af} .tdot.expl{background:#f0d08a} .tdot.howto{background:#b9a7e8}
+  .tdot.ref{background:#9fc7ea} .tdot.ex{background:#e8a4c0}
+  .badge.expl{background:#4a3e22; color:#f0d08a}
+  /* Help-Pane: eigener Scrollbereich — nur die Inhalte unterhalb der Navi scrollen */
+  .hbpane{display:flex; flex-direction:row; flex:1 1 auto; min-height:0; background:var(--panel2)}
+  .hbpane .pbar{margin:0; padding:9px 12px; background:var(--panel); border-bottom:1px solid var(--border); flex:0 0 auto}
+  .hbpane .hmeta{flex:0 0 auto; padding:7px 12px 0}
+  .hbscroll{flex:1 1 auto; overflow-y:auto; overflow-x:hidden; min-height:0; padding:0 12px 14px; position:relative}
+  /* Help-Sidebar: Typ oben (fest), Pack-Liste darunter (scrollt separat) */
+  .hbside{width:196px; flex:0 0 auto; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0}
+  .hbtypes{flex:0 0 auto; padding:6px 0; border-bottom:1px solid var(--border)}
+  .hbpacks{flex:1 1 auto; overflow-y:auto; overflow-x:hidden; min-height:0; padding:0 0 8px}
+  .hbside .sg{padding:7px 12px 3px; font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--faint)}
+  .hbside button{display:flex; align-items:center; gap:6px; width:100%; background:none; border:none; border-left:2px solid transparent;
+                 color:var(--muted); font-family:inherit; font-size:11.5px; padding:4px 10px; cursor:pointer; text-align:left; min-width:0}
+  .hbside button:hover{background:var(--panel2); color:var(--text)}
+  .hbside button.on{background:var(--panel2); color:var(--text); border-left-color:var(--accent); font-weight:600}
+  .hbside button.in{background:rgba(106,153,85,.07)}
+  .hbside button .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .hbside button .n{flex:0 0 auto; color:var(--faint); font-size:10px}
+  .hbmain{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0}
+  .hbmain .pbar{margin:0; padding:9px 12px; background:var(--panel); border-bottom:1px solid var(--border); flex:0 0 auto}
+  .hbmain .hmeta{flex:0 0 auto; padding:6px 12px 0}
+  /* Pack-Kopf: klebt oben im Scrollbereich, Sprungmarke der Sidebar zielt darauf */
+  .pkh{position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:8px; padding:9px 4px 7px; margin-top:12px;
+       background:var(--panel2); border-bottom:1px solid var(--border)}
+  .pkh.in{box-shadow:inset 3px 0 0 var(--green)}
+  .pkh .pkn{font-size:13px; font-weight:600; color:var(--text); white-space:nowrap}
+  .pkh .pkc{font-size:10.5px; color:var(--accent); flex:0 0 auto}
+  .pkh .pka{font-size:10.5px; color:var(--faint); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pkh .pkx{margin-left:auto; flex:0 0 auto; display:flex; gap:6px; align-items:center}
+  .dlx{display:inline-flex; align-items:center; gap:6px; font-size:10px; color:var(--accent)}
+  .dlx .pct{font-variant-numeric:tabular-nums; min-width:30px; text-align:right}
+  .mini{display:inline-block; width:64px; height:4px; background:var(--panel3); overflow:hidden; vertical-align:middle}
+  .mini i{display:block; height:100%; width:0%; background:var(--accent); transition:width .12s linear}
+  /* Pack-Index (Ruhezustand): eine Zeile pro Pack, Accordion */
+  .hindex{display:flex; align-items:baseline; gap:10px; width:100%; background:none; border:none;
+          border-bottom:1px solid var(--border); color:var(--text); font-size:13px; padding:9px 4px;
+          cursor:pointer; font-family:inherit; text-align:left}
+  .hindex:hover{background:var(--panel)}
+  .hindex .nm{font-weight:600; flex:0 0 auto}
+  .hindex .n{color:var(--accent); font-size:10.5px; flex:0 0 auto}
+  .hindex .d{color:var(--faint); font-size:11px; flex:1 1 auto; min-width:0;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .hindex .car{color:var(--faint); flex:0 0 auto; width:10px}
+  /* Help-Index: nur grüner Zeilentön bei installierten Packs — kein Text, kein Badge */
+  .hindex.in{background:rgba(106,153,85,.07)}
+  .hindex.in:hover{background:rgba(106,153,85,.12)}
+  /* Treffer-Hervorhebung der Volltextsuche */
+  .hit{background:none; color:var(--blue); text-decoration:underline;
+       text-decoration-color:#41befb; text-decoration-thickness:2px; text-underline-offset:3px}
+  /* Download-Fortschritt: Balken in der Help-Zeile bzw. in der Pack-Zeile */
+  .dlbar{display:inline-flex; align-items:center; gap:6px; min-width:118px}
+  .dlbar .track{display:block; flex:1 1 auto; height:4px; background:var(--panel3); overflow:hidden}
+  .dlbar .track i{display:block; height:100%; width:0%; background:var(--accent); transition:width .12s linear}
+  .dlbar .pct{font-size:9.5px; color:var(--accent); font-variant-numeric:tabular-nums; width:30px; text-align:right}
+  .dlbar .x{background:none; border:none; color:var(--faint); cursor:pointer; font-size:11px; padding:0 2px; font-family:inherit}
+  .dlbar .x:hover{color:var(--text)}
+  .dlbar.err .track i{background:var(--red)}
+  .dlbar.err .pct{color:#e8a49c}
+  .prow.dl{background:rgba(240,162,50,.05); position:relative}
+  .prow{position:relative}
+  .prow .rowbar{position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--panel3)}
+  .prow .rowbar i{display:block; height:100%; width:0%; background:var(--accent); transition:width .12s linear}
+  /* Pack-Kopf + Sektionen + Einträge — Struktur wie der Help-Browser [Fundamentals-Screenshot] */
+  .pkhead{margin:22px 0 6px}
+  .pkhead:first-of-type{margin-top:4px}
+  .pkhead .t{font-size:22px; font-weight:700; color:var(--text); line-height:1.2; letter-spacing:-.2px}
+  .pkhead .m{color:var(--faint); font-size:11px; line-height:1.65; margin-top:7px}
+  .pkhead .btn{margin-top:9px}
+  .hsec{font-size:13.5px; font-weight:600; color:var(--text); margin:18px 0 7px;
+        text-decoration:underline; text-underline-offset:5px; text-decoration-color:var(--blue)}
+  .hentries{column-count:2; column-gap:34px}
+  .hentry{display:flex; align-items:flex-start; gap:7px; width:100%; background:none; border:none;
+          color:var(--text); font-size:12.5px; padding:3px 0; cursor:pointer; font-family:inherit;
+          text-align:left; break-inside:avoid; line-height:1.45}
+  .hentry:hover{color:var(--accent)}
+  .hentry .tdot{margin-top:6px; flex:0 0 auto}
+  .hentry .et{flex:1 1 auto; min-width:0}
+  .hentry .ei{flex:0 0 auto; color:var(--faint); font-size:11px; margin-left:2px}
+
+  /* ---------- Entdecken (nuget.org-Browser) ---------- */
+  .disc{display:flex; min-height:330px; border:1px solid var(--border); background:var(--panel2)}
+  .catrail{width:168px; flex:0 0 auto; background:var(--panel); border-right:1px solid var(--border); padding:8px 0}
+  .catrail .grp{padding:6px 13px 3px; font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--faint)}
+  .catrail button{display:flex; width:100%; text-align:left; background:none; border:none; color:var(--muted);
+                  padding:5px 13px; font-size:11.5px; cursor:pointer; border-left:2px solid transparent;
+                  font-family:inherit; align-items:center; gap:6px}
+  .catrail button:hover{background:var(--panel2); color:var(--text)}
+  .catrail button.on{background:var(--panel2); color:var(--text); border-left-color:var(--accent); font-weight:600}
+  .catrail button .n{margin-left:auto; font-size:9.5px; color:var(--faint)}
+  .disc-main{flex:1 1 auto; padding:10px 12px; min-width:0}
+  .disc-toolbar{display:flex; gap:8px; align-items:center; margin-bottom:9px; flex-wrap:wrap}
+  .disc-toolbar .sp{margin-left:auto; color:var(--faint); font-size:10.5px}
+  .pcards{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px}
+  .pcard{background:var(--panel); border:1px solid var(--border); padding:9px 10px; font-size:11.5px;
+         cursor:pointer; text-align:left; font-family:inherit; color:var(--text); display:block;
+         width:100%; min-width:0}
+  .pcard:hover{border-color:var(--accent-dim)}
+  .pcard .top{display:flex; gap:9px; align-items:flex-start; min-width:0}
+  .pcard .top>div{min-width:0}
+  .picon{width:34px; height:34px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+         background:var(--panel3); border:1px solid var(--border2); color:var(--accent);
+         font-size:15px; font-weight:700; font-family:Consolas,monospace}
+  .pcard .nm{font-weight:600; color:var(--text); font-size:12px; line-height:1.3;
+             overflow-wrap:anywhere; padding-right:15px}
+  .pcard .au{color:var(--faint); font-size:10.5px; margin-top:1px}
+  .pcard .meta{display:flex; gap:9px; color:var(--faint); font-size:10px; margin-top:6px; flex-wrap:wrap; align-items:center}
+  .pcard .act{margin-top:8px; display:flex; gap:6px; align-items:center}
+  .pcard.inst{border-color:rgba(106,153,85,.45); background:rgba(106,153,85,.05)}
+  .pcard .fav{position:absolute; top:7px; right:8px; color:var(--faint); font-size:12px; cursor:pointer}
+  .pcard .fav.on{color:var(--accent)}
+  .pcard{position:relative}
+  .backlink{background:none; border:none; color:var(--blue); cursor:pointer; font-size:11.5px;
+            font-family:inherit; padding:0 0 9px 0; text-align:left}
+  .backlink:hover{color:var(--accent)}
+  .pdhead{display:flex; gap:12px; align-items:flex-start; margin-bottom:12px}
+  .pdhead .picon{width:46px; height:46px; font-size:20px}
+  .pdhead .nm{font-size:15px; font-weight:600; color:var(--text)}
+  .pdhead .au{color:var(--muted); font-size:11.5px; margin-top:2px}
+  .pdhead .meta{display:flex; gap:12px; color:var(--faint); font-size:10.5px; margin-top:6px; flex-wrap:wrap}
+  .pdhead .act{margin-left:auto; display:flex; gap:6px; flex:0 0 auto}
+
+  /* gerendertes Readme */
+  .readme{background:var(--panel); border:1px solid var(--border); padding:14px 16px;
+          font-size:12px; line-height:1.65; color:var(--muted)}
+  .readme h1{font-size:15px; color:var(--text); margin-bottom:7px; border-bottom:1px solid var(--border); padding-bottom:6px}
+  .readme h2{font-size:12.5px; color:var(--text); margin:14px 0 6px; text-transform:uppercase; letter-spacing:.6px}
+  .readme p{margin-bottom:8px}
+  .readme ul{margin:0 0 8px 18px}
+  .readme li{margin-bottom:3px}
+  .readme code{background:var(--field); border:1px solid var(--field-bd); padding:1px 5px;
+               font-family:Consolas,monospace; font-size:11px; color:#ce9178}
+  .readme pre{background:var(--field); border:1px solid var(--field-bd); padding:9px 11px;
+              font-family:Consolas,monospace; font-size:11px; color:var(--text); overflow-x:auto;
+              margin-bottom:9px; white-space:pre-wrap}
+  .readme .rbadge{display:inline-block; background:var(--panel3); border:1px solid var(--border2);
+                  color:var(--muted); font-size:10px; padding:1px 6px; margin:0 5px 7px 0}
+  .readme .shot{display:flex; gap:5px; margin-bottom:9px}
+  .readme .shot i{display:block; width:46px; height:30px; background:linear-gradient(135deg,#3a3a40,#22222a);
+                  border:1px solid var(--border2)}
+
+  /* ---------- Settings: Theme-Switcher (keine Sub-Tabs) ---------- */
+  .themes{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:8px}
+  .theme{border:1px solid var(--border); background:var(--panel); padding:10px; cursor:pointer;
+         text-align:left; font-family:inherit; color:var(--text)}
+  .theme:hover{border-color:var(--accent-dim)}
+  .theme.on{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+  .theme .sw{display:flex; gap:4px; margin-bottom:8px}
+  .theme .sw i{display:block; width:24px; height:15px; border:1px solid rgba(127,127,127,.55)}
+  .theme .nm{font-weight:600; font-size:12px}
+  .theme .d{color:var(--faint); font-size:10.5px; margin-top:3px; line-height:1.5}
+
+  /* ---------- Shortcuts ---------- */
+  .scgrp{margin-top:14px}
+  .scgrp .g{font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--faint); margin-bottom:5px}
+  .scrow{display:flex; gap:10px; padding:7px 10px; border:1px solid var(--border); background:var(--panel);
+         margin-bottom:5px; font-size:11.5px; align-items:center}
+  .scrow .t{flex:1 1 auto; color:var(--text)}
+  .scrow .t small{display:block; color:var(--faint); font-size:10px; margin-top:1px}
+  .scrow .k{flex:0 0 auto; text-align:right; white-space:nowrap}
+  .kbd{display:inline-block; background:var(--panel3); border:1px solid var(--border2); border-bottom-width:2px;
+       color:var(--text); font-family:Consolas,monospace; font-size:10.5px; padding:1px 6px;
+       margin:0 3px 2px 0; border-radius:2px}
+
+  /* ---------- Overlay/Toast ---------- */
+  .overlay{position:absolute; inset:0; background:rgba(20,21,24,.72); display:none;
+           align-items:center; justify-content:center; z-index:40}
+  .overlay.on{display:flex}
+  .dialog{background:var(--panel2); border:1px solid var(--border2); padding:20px 22px;
+          width:340px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  /* großer Overlay-Dialog (Packs / Assemblies / Files) — wie das Ist-Overlay */
+  .dialog.wide{width:680px; max-width:calc(100vw - 60px); text-align:left; padding:0; overflow:hidden}
+  .dialog.wide .dlg-head{display:flex; align-items:center; gap:9px; padding:11px 16px;
+          border-bottom:1px solid var(--border); background:var(--panel3); font-weight:600; font-size:13px}
+  .dialog.wide .dlg-head .x{margin-left:auto; background:none; border:none; color:var(--muted);
+          cursor:pointer; font-size:15px; line-height:1; padding:2px 6px; font-family:inherit}
+  .dialog.wide .dlg-head .x:hover{color:var(--accent)}
+  .dialog.wide .dlg-body{padding:14px 16px; max-height:56vh; overflow-y:auto}
+  .dialog.wide .dlg-foot{display:flex; gap:8px; justify-content:flex-end; align-items:center;
+          padding:11px 16px; border-top:1px solid var(--border); background:var(--panel3); font-size:11px; color:var(--faint)}
+
+  /* ---------- Browse-Overlay: liegt NUR über dem Reference-Fenster (Runde 6) ----------
+     Stil des .NET-Assembly-Fensters: Titel + ✕ rechts, Suche mit ✕,
+     Kategorie-Accordion, Footer „Indexed at … | Refresh“ + „Only Stable Versions“ */
+  .refshade{position:absolute; inset:0; z-index:24; background:rgba(20,21,24,.55)}
+  .refpanel{position:absolute; left:14px; right:14px; top:12%; bottom:12%; z-index:25; display:flex; flex-direction:column;
+            background:var(--panel2); border:1px solid var(--border2); box-shadow:0 18px 48px rgba(0,0,0,.55)}
+  .refpanel .rp-head{display:flex; align-items:center; gap:9px; flex:0 0 auto;
+            padding:10px 14px; background:var(--panel3); border-bottom:1px solid var(--border);
+            font-weight:600; font-size:13px; color:var(--text)}
+  .refpanel .rp-head .x{margin-left:auto; background:none; border:none; color:var(--muted);
+            cursor:pointer; font-size:15px; line-height:1; padding:2px 6px; font-family:inherit}
+  .refpanel .rp-head .x:hover{color:var(--accent)}
+  .refpanel .rp-search{display:flex; align-items:center; gap:7px; flex:0 0 auto;
+            padding:10px 14px; border-bottom:1px solid var(--border)}
+  .refpanel .rp-search input{flex:1 1 auto; background:var(--field); border:1px solid var(--field-bd);
+            color:var(--text); padding:5px 8px; font-size:11.5px; font-family:inherit}
+  .refpanel .rp-search .clr{background:none; border:none; color:var(--faint); cursor:pointer;
+            font-size:12px; padding:0 4px; font-family:inherit}
+  .refpanel .rp-search .clr:hover{color:var(--text)}
+  .refpanel .rp-body{flex:1 1 auto; overflow-y:auto; overflow-x:hidden; min-height:0; padding:10px 14px}
+  .refpanel .rp-foot{display:flex; align-items:center; gap:10px; flex:0 0 auto;
+            padding:9px 14px; border-top:1px solid var(--border); background:var(--panel3);
+            font-size:10.5px; color:var(--faint)}
+  .refpanel .rp-foot .stable{margin-left:auto; display:flex; gap:5px; align-items:center; cursor:pointer}
+  .refpanel .rp-foot .refresh{background:none; border:none; color:var(--blue); cursor:pointer;
+            font-size:10.5px; font-family:inherit; padding:0}
+  .refpanel .rp-foot .refresh:hover{color:var(--accent)}
+  /* Kategorie-Accordion im Overlay */
+  .racc{border-bottom:1px solid var(--border)}
+  .racc .hd{display:flex; align-items:center; gap:7px; width:100%; background:none; border:none;
+            color:var(--text); font-size:11.5px; font-weight:600; padding:7px 2px; cursor:pointer;
+            font-family:inherit; text-align:left}
+  .racc .hd .car{color:var(--faint); width:10px}
+  .racc .hd .cnt{font-weight:400; color:var(--faint); font-size:10.5px}
+  .racc .hd .sp{margin-left:auto; color:var(--faint); font-size:10px; font-weight:400}
+  .racc .bd{padding:2px 0 9px}
+  .racc .opt{display:flex; align-items:center; gap:7px; width:100%; background:none; border:none;
+             color:var(--muted); font-size:11.5px; padding:4px 4px 4px 17px; cursor:pointer;
+             font-family:inherit; text-align:left}
+  .racc .opt:hover{color:var(--text); background:var(--panel)}
+  .racc .opt.on{color:var(--text); font-weight:600}
+  .racc .opt .n{margin-left:auto; color:var(--faint); font-size:10px}
+
+  /* Pack-Zeile im Overlay: Stern · Name · Version-Dropdown · Downloads · Aktion */
+  .prow{display:flex; align-items:center; gap:8px; padding:7px 8px; border:1px solid var(--border);
+        background:var(--panel); margin-bottom:6px; font-size:11.5px}
+  .prow.in{border-color:rgba(106,153,85,.45); background:rgba(106,153,85,.06)}
+  .prow .star{cursor:pointer; color:var(--faint)}
+  .prow .star.on{color:var(--accent)}
+  .prow .nm{font-weight:600; flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .prow .ver{flex:0 0 auto}
+  .prow select{background:#1a1a1a; border:1px solid var(--border2); color:var(--text);
+               font-size:11px; padding:2px 4px; font-family:inherit}
+  .prow .dl{flex:0 0 auto; color:var(--faint); font-size:10.5px; width:78px; text-align:right}
+  .prow .act{flex:0 0 auto; width:96px; text-align:right}
+
+  /* ---------- Pack-Zeile im Screenshot-Stil (Runde 6) ----------
+     Icon-Quadrat · Name + Autor · Beschreibung + Tags · Version ▾ · Statuspunkt ·
+     Aktionsbutton · ⋯ · Stern · Help-Icon · Downloads */
+  .prow.shot{display:flex; align-items:flex-start; gap:10px; padding:9px 10px; position:relative}
+  .prow.shot .sq{width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+                 background:var(--panel3); border:1px solid var(--border2); color:var(--accent);
+                 font-size:14px; font-weight:700; font-family:Consolas,monospace}
+  .prow.shot .info{flex:1 1 auto; min-width:0}
+  .prow.shot .nm{font-weight:600; font-size:12px; color:var(--text); line-height:1.35}
+  .prow.shot .au{color:var(--faint); font-size:10.5px; margin-top:1px}
+  .prow.shot .dsc{color:var(--muted); font-size:11px; margin-top:3px; line-height:1.45;
+                  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .prow.shot .tags{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px}
+  .prow.shot .tg{border:1px solid var(--border2); color:var(--faint); font-size:9.5px; padding:1px 6px}
+  .prow.shot .side{flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:6px; min-width:150px}
+  .prow.shot .side .l1{display:flex; align-items:center; gap:8px; font-size:10.5px; color:var(--muted)}
+  .prow.shot .side .l2{display:flex; align-items:center; gap:8px}
+  .prow.shot .helpico{color:var(--faint); font-size:12px; cursor:pointer; background:none; border:none;
+                      padding:0 2px; font-family:inherit}
+  .prow.shot .helpico:hover{color:var(--accent)}
+  .prow.shot .more{color:var(--faint); cursor:pointer; background:none; border:none; font-size:13px;
+                   padding:0 3px; font-family:inherit; letter-spacing:1px}
+  .prow.shot .more:hover{color:var(--text)}
+  .prow.shot .dl{width:auto; text-align:right}
+  /* Statuspunkt: grau = nicht installiert · grün = installiert · blau = Update · orange = lädt */
+  .sdot{display:inline-block; width:8px; height:8px; border-radius:50%; flex:0 0 auto; background:#5a5a63}
+  .sdot.ok{background:var(--green)}
+  .sdot.upd{background:var(--blue)}
+  .sdot.busy{background:var(--accent); animation:pulse2 1s ease-in-out infinite}
+  @keyframes pulse2{0%,100%{opacity:1} 50%{opacity:.35}}
+  .badge.bi{background:rgba(106,153,85,.16); border:1px solid rgba(106,153,85,.5); color:#a8d8a0;
+            font-size:9px; font-weight:700; padding:1px 5px; text-transform:uppercase; letter-spacing:.5px}
+
+  /* NuGet-Pfad / Startup-Command */
+  .pathbox{display:flex; align-items:center; gap:8px; background:#1a1a1a; border:1px solid var(--border);
+           padding:7px 10px; font-family:Consolas,"Courier New",monospace; font-size:11px; color:#b9d9f3;
+           margin:6px 0; word-break:break-all}
+  .pathbox .btn{font-family:"Segoe UI",system-ui,sans-serif; margin-left:auto; flex:0 0 auto}
+  .cmd{background:#1a1a1a; border:1px solid var(--border); padding:6px 9px; font-size:10.5px;
+       font-family:Consolas,"Courier New",monospace; color:#ce9178; margin-top:5px; word-break:break-all}
+
+  /* Dock-Fenster: References und Browser teilen dieselbe Fenster-Chrome */
+  .win.dockwin{position:relative; max-width:none; flex:0 0 auto; width:min(640px,52%); display:flex; flex-direction:column;
+               box-shadow:-10px 0 34px rgba(0,0,0,.4); z-index:6}
+  .win.dockwin .tabpane{flex:1 1 auto; overflow-y:auto; min-height:0; padding:14px}
+  .win.dockwin .tabpane.fill{padding:0; overflow:hidden; display:flex; flex-direction:column}
+  /* Äußeres vvvv-gamma-Fenster: feste Höhe bis unten, Dock-Spalte füllt sie */
+  .win.vvvvwin{height:max(560px, calc(100vh - 190px)); display:flex; flex-direction:column}
+  .win.vvvvwin>div:not(.win-title){flex:1 1 auto; min-height:0; display:flex; flex-direction:column}
+  .win.vvvvwin .app{flex:1 1 auto; min-height:0}
+  .win.vvvvwin .win-title{flex:0 0 auto}
+  /* ---------- Version 2: dockbare Fenster ---------- */
+  .v2bar{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-size:11.5px}
+  .v2bar .lbl{color:var(--faint); margin-right:4px}
+  .v2bar button{background:none; border:1px solid var(--border2); color:var(--muted); padding:3px 10px; cursor:pointer; font-family:inherit; font-size:11.5px}
+  .v2bar button:hover{color:var(--text)}
+  .v2bar button.on{background:var(--panel3); color:var(--text); border-color:var(--accent)}
+  .v2root{display:flex; flex:1 1 auto; min-height:0; min-width:0; position:relative}
+  .vsplit{display:flex; flex:1 1 auto; min-width:0; min-height:0}
+  .vstack{display:flex; flex-direction:column; flex:1 1 auto; min-width:0; min-height:0; background:var(--panel2); border-left:1px solid var(--border2)}
+  .vstack .vhead{flex:0 0 auto; cursor:grab; user-select:none}
+  .vstack .vhead .wclose{cursor:pointer}
+  .vstack>.vbody{flex:1 1 auto; min-height:0; display:flex; flex-direction:column}
+  .vstack>.btabs{flex:0 0 auto}
+  .vcol{flex:1 1 auto; min-height:0; min-width:0; display:flex; flex-direction:column; position:relative; overflow:hidden}
+  .vcol>.tabpane{flex:1 1 auto; min-height:0; overflow-y:auto; padding:14px}
+  .vcol>.tabpane.fill{overflow:hidden; padding:0; display:flex; flex-direction:column}
+  .vhl{position:fixed; z-index:80; pointer-events:none; background:rgba(240,162,50,.16); border:2px solid var(--accent)}
+  .fswitch{display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--panel); font-size:12px; flex:0 0 auto}
+  .fswitch .fl{font-weight:600; color:var(--text)}
+  .fswitch .fhint{color:var(--faint); font-size:11px}
+  .fswitch .switch{margin-left:auto; width:36px; height:18px; border-radius:9px; background:var(--panel3); border:1px solid var(--border2); position:relative; cursor:pointer; padding:0; flex:0 0 auto}
+  .fswitch .switch i{position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:var(--faint); transition:left .15s}
+  .fswitch .switch.on{background:var(--green); border-color:var(--green)}
+  .fswitch .switch.on i{left:20px; background:#fff}
+  .setv2 .sg-h{font-weight:600; font-size:13px; color:var(--text); margin:6px 0 6px}
+  .setv2 .grp{font-weight:600; font-size:13px; color:var(--text); margin:18px 0 6px}
+  .setv2 .opt{display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12px; color:var(--text); cursor:pointer}
+  .setv2 .opt input{accent-color:var(--accent); margin:0}
+  .setv2 .pathrow{display:flex; gap:8px; align-items:center}
+  .setv2 .pathtxt{flex:1 1 auto; background:var(--field); border:1px solid var(--field-bd); color:var(--faint); padding:4px 8px; font-size:11.5px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .setv2 .num{width:64px; background:var(--field); border:1px solid var(--field-bd); color:var(--text); padding:2px 6px; font-family:inherit; font-size:11.5px; margin-left:auto}
+  .setv2 .srow .lt{flex:1 1 auto}
+  .comm{padding:14px 16px; font-size:12px}
+  .comm .ctitle{text-align:center; color:var(--text); font-weight:600; line-height:1.5; margin-bottom:10px}
+  .comm .csub{text-align:center; color:var(--faint); font-size:11px; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:12px}
+  .comm .cchat{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-bottom:14px}
+  .comm .cbtn{background:var(--panel3); border:1px solid var(--border2); color:var(--text); padding:6px 12px; cursor:pointer; font-family:inherit; font-size:12px; min-width:118px; text-align:center}
+  .comm .cbtn:hover{border-color:var(--accent)}
+  .comm .cbig{font-size:14px; padding:10px 14px}
+  .comm .ctext{flex:1 1 220px; color:var(--muted); font-size:11.5px; line-height:1.5}
+  .comm .rooms{display:flex; gap:5px; flex-wrap:wrap; width:100%}
+  .comm .room{min-width:0; padding:3px 9px; font-size:10.5px}
+  .comm .crow{display:flex; align-items:center; gap:12px; padding:5px 0; border-bottom:1px solid var(--border)}
+  .comm .crow .cbtn{min-width:120px; flex:0 0 auto}
+  .comm .cdesc{color:var(--muted); font-size:11.5px; line-height:1.4}
+  /* Listen-/Kartenumschalter im Pack-Browser */
+  .vtog{display:inline-flex; border:1px solid var(--border2)}
+  .vtog button{background:none; border:none; color:var(--muted); padding:2px 7px; cursor:pointer; font-size:12px; font-family:inherit}
+  .vtog button.on{background:var(--panel3); color:var(--text)}
+  /* Pack-Browser: Sidebar links (All/Favorites, Kategorien oder Herausgeber) + Liste rechts */
+  .pbody{display:flex; gap:0; align-items:stretch; min-width:0}
+  .pside{width:168px; flex:0 0 auto; border-right:1px solid var(--border); padding:4px 0 8px; margin-right:10px}
+  .pside .pitem{display:flex; align-items:center; gap:6px; width:100%; background:none; border:none;
+                border-left:2px solid transparent; color:var(--muted); font-family:inherit; font-size:11.5px;
+                padding:4px 8px 4px 10px; cursor:pointer; text-align:left}
+  .pside .pitem:hover{color:var(--text); background:var(--panel)}
+  .pside .pitem.on{color:var(--text); font-weight:600; border-left-color:var(--accent); background:var(--panel2)}
+  .pside .pitem .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pside .pitem .n{color:var(--faint); font-size:10px}
+  .pside .pseg{display:flex; margin:4px 8px 8px; border:1px solid var(--border2)}
+  .pside .pseg button{flex:1 1 auto; background:none; border:none; color:var(--muted); font-size:10.5px; padding:3px 4px; cursor:pointer; font-family:inherit}
+  .pside .pseg button.on{background:var(--panel3); color:var(--text)}
+  .pbody .plist{flex:1 1 auto; min-width:0}
+  /* Listenansicht wie vvvv: eine Zeile pro Pack, ohne Beschreibung und Tags */
+  .plist:not(.pcards) .prow.shot{display:flex; flex-direction:row; align-items:center; gap:8px; padding:5px 8px; margin-bottom:3px}
+  .plist:not(.pcards) .prow.shot .sq,
+  .plist:not(.pcards) .prow.shot .dsc,
+  .plist:not(.pcards) .prow.shot .tags,
+  .plist:not(.pcards) .prow.shot .stt{display:none}
+  .plist:not(.pcards) .prow.shot .sdot{order:2}
+  .plist:not(.pcards) .prow.shot .info{flex:1 1 auto; min-width:0; display:flex; align-items:baseline; gap:8px}
+  .plist:not(.pcards) .prow.shot .info .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+  .plist:not(.pcards) .prow.shot .info .au{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+  .plist:not(.pcards) .prow.shot .side,
+  .plist:not(.pcards) .prow.shot .side .l1,
+  .plist:not(.pcards) .prow.shot .side .l2{display:contents}
+  .plist:not(.pcards) .prow.shot .ver{order:1; flex:0 0 auto}
+  .plist:not(.pcards) .prow.shot .ver select{width:112px}
+  .plist:not(.pcards) .prow.shot .badge{order:0}
+  .plist:not(.pcards) .prow.shot .act{order:3; flex:0 0 auto}
+  .plist:not(.pcards) .prow.shot .act .btn{background:#2f7fb8; border-color:#2f7fb8; color:#fff; min-width:104px}
+  .plist:not(.pcards) .prow.shot .more{order:4}
+  .plist:not(.pcards) .prow.shot .star{order:5}
+  .plist:not(.pcards) .prow.shot .helpico{order:6}
+  .plist:not(.pcards) .prow.shot .dl{order:7; width:auto; flex:0 0 auto; font-size:10.5px; color:var(--muted)}
+  .plist.pcards{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; align-items:start}
+  .plist.pcards .sect{grid-column:1/-1; margin:12px 0 2px}
+  .plist.pcards .prow.shot{flex-direction:column; margin:0; gap:8px}
+  .plist.pcards .prow.shot .info{width:100%}
+  .plist.pcards .prow.shot .side{align-items:stretch; width:100%; min-width:0}
+  .plist.pcards .prow.shot .side .l1,
+  .plist.pcards .prow.shot .side .l2{justify-content:space-between}
+  .plist.pcards .prow.shot .dsc{white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+  .plist.pcards .prow.shot .tags{display:none}
+  /* Dock-Spalte rechts: Fenster + Tab-Leiste UNTEN (Recording: Help Browser · Inspector · References) */
+  .dockcol{display:flex; flex-direction:column; flex:0 0 auto; width:min(640px,52%); min-width:0;
+           background:var(--panel2)}
+  .dockcol>.win{flex:1 1 auto; width:auto; max-width:none; box-shadow:none;
+                border-top:none; border-right:none; border-bottom:none}
+  .dockcol .win-title{flex:0 0 auto}
+  .dockcol .tabs{flex:0 0 auto}
+  .dockcol .tabpane{flex:1 1 auto; overflow-y:auto; min-height:0}
+  .dockcol>.btabs{flex:0 0 auto}
+  .btabs button .ic{opacity:.7; margin-right:4px}
+  .dock.wide{width:400px}
+  .dock.wide .dock-body{padding:10px}
+  .dialog .big{font-size:15px; font-weight:600; margin-bottom:6px}
+  .dialog .d{color:var(--muted); font-size:12px; line-height:1.6; margin-bottom:14px}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+         background:var(--panel2); border:1px solid var(--green); color:#a8d8a0;
+         padding:10px 18px; font-size:12.5px; opacity:0; pointer-events:none;
+         transition:.3s; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  /* ---------- Hotspots (Flow) ---------- */
+  .hot{box-shadow:var(--hot) !important; animation:pulse 1.6s ease-in-out infinite; position:relative; z-index:5}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--accent), 0 0 12px 2px rgba(240,162,50,.45)}
+                   50%{box-shadow:0 0 0 2px var(--accent), 0 0 18px 5px rgba(240,162,50,.7)}}
+  .stepchip{display:inline-block; background:var(--accent); color:#1e1e1e; font-size:9.5px; font-weight:700;
+            padding:1px 6px; margin-right:6px; vertical-align:1px}
+  .flowdone{background:rgba(106,153,85,.12); border:1px solid rgba(106,153,85,.4); color:#a8d8a0;
+            padding:10px 14px; font-size:12px; margin-bottom:14px; max-width:980px; display:none}
+  .flowdone.on{display:block}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><b>vvvv</b> gamma — UX-Prototyp</div>
+  <div class="seg" id="verSeg">
+    <button data-ver="v1" class="on">Version 1</button>
+    <button data-ver="v2">Version 2 · dockbar</button>
+  </div>
+  <div class="flowbar" id="flowbar">
+    <span class="steps" id="flowSteps"></span>
+    <span class="hint" id="flowHint"></span>
+    <button id="flowCancel">Flow beenden ✕</button>
+  </div>
+</div>
+
+<div class="main">
+  <nav class="sidebar" id="sidebar"></nav>
+  <div class="stage">
+    <div class="viewport" id="viewport"></div>
+    <aside class="notes" id="notes"></aside>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="dialog" id="dialog"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+/* =====================================================================
+   Echte Pack-Daten (data.js — erzeugt von tools/scripts/fetch_packs.py)
+   ===================================================================== */
+const PD = window.PACK_DATA || {indexedAt:"—", shipped:[], packs:[]};
+const SHIPPED = PD.shipped || [];
+const REAL = {}; PD.packs.forEach(p=>REAL[p.i]=p);
+
+/* nuget-Kategorie → Prototyp-Kategorie */
+function catKeyOf(cats, tags){
+  const s = (cats||[]).concat(tags||[]).join(" ").toLowerCase();
+  if(/vision|image|opencv|camera|video|recognition|detection|machine/.test(s)) return "vision";
+  if(/graphic|render|draw|svg|skia|2d|3d|shader|color/.test(s)) return "graphics";
+  if(/audio|sound|media|music|stream/.test(s)) return "media";
+  if(/\bui\b|gui|window|control|widget|avalonia|interface/.test(s)) return "ui";
+  if(/io|serial|mqtt|osc|device|hardware|network|http|socket|binding/.test(s)) return "io";
+  return "tools";
+}
+const fmtDl = n => n>=1e6 ? (n/1e6).toFixed(1).replace(".",",")+"M"
+                 : n>=1000 ? Math.round(n/1000)+"k" : String(n||0);
+function relTime(ms){
+  if(!ms) return "";
+  const d = (Date.now()-ms)/86400000;
+  if(d<1) return "heute";
+  if(d<2) return "gestern";
+  if(d<45) return `vor ${Math.round(d)} Tagen`;
+  if(d<400) return `vor ${Math.round(d/30)} Monaten`;
+  return `vor ${(d/365).toFixed(1).replace(".",",")} Jahren`;
+}
+/* Echten Datensatz → Pack-Objekt für den Pack-Browser */
+function realPackObj(r, ico){
+  const vers = (r.vs&&r.vs.length) ? r.vs : [r.v];
+  return {
+    id:r.i, n:r.i, ico:ico||"▣", author:r.a||"vvvv",
+    cat:catKeyOf(r.c, r.t),
+    catLabel:(r.c&&r.c[0])||"nuget",
+    v:r.v, vers, dl:fmtDl(r.dl), dlN:r.dl||0,
+    upd:relTime(r.lp), updRank:r.lp?Math.round((Date.now()-r.lp)/86400000):9999,
+    addedDays:r.fp?Math.round((Date.now()-r.fp)/86400000):9999,
+    fav:false, shipped:SHIPPED.includes(r.i),
+    helpCount:(r.h||[]).length,
+    refCount:(r.h||[]).filter(e=>e[0]==="ref").length,
+    d:r.d||"", tags:(r.t||[]).slice(0,4), help:r.h||[], readme:null
+  };
+}
+/* Readme für rein echte Packs (aus Katalogdaten generiert) */
+function realReadme(p){
+  return `<h1>${p.n}</h1><span class="rbadge">nuget</span><span class="rbadge">v${p.v}</span>
+<span class="rbadge">${p.author}</span>${p.shipped?'<span class="rbadge">Built-In</span>':''}
+<p>${p.d||"Keine Beschreibung hinterlegt."}</p>
+<h2>Metadaten</h2>
+<ul><li>Downloads: ${p.dl}</li><li>Help-Patches: ${p.helpCount}</li>
+<li>Tags: ${(p.tags||[]).join(", ")||"—"}</li></ul>`;
+}
+
+/* =====================================================================
+   Daten (Screens, Flows)
+   ===================================================================== */
+const NOTES = {
+  v2:{t:"Version 2 — dockbare Fenster", s:"Gleichrangige Fenster statt Tabs. Fenster ziehen: an den Rand oder in die Mitte eines anderen Fensters.",
+      p:["<b>Andocken:</b> Titelleiste ziehen. Am Rand des Ziels erscheint der Platz: Rand teilt, Mitte stapelt als Tab.",
+         "<b>Schalter oben</b> öffnen und schließen Fenster. Das Layout bleibt beim Umschalten erhalten.",
+         "<b>Help</b> enthält Follow-Mode, Shortcuts und Community &amp; Links.",
+         "<b>Settings</b> beginnt mit dem Theme-Switcher."]},
+  "neu-home": {t:"Vorschlag: Browser → Welcome", s:"Einstieg für den Explore-Modus",
+    p:["<b>P1:</b> Statuszeile beantwortet die Kernfrage sofort: Updates vorhanden? → Klick springt dorthin.",
+       "<b>P8:</b> Welcome/Get-Started-Muster (VS Code, Blender): man landet in einer Welt, nicht in einem leeren Panel.",
+       "<b>Layout:</b> Der Browser ist — wie References — ein <b>Fenster im Hauptfenster</b>: offene Dokumente als Tabs oben, Patch mit Process-Nodes links."]},
+  "neu-help": {t:"Vorschlag: Browser → Help", s:"FILTER BY, Typ-Filter, Pack-Index mit Accordion",
+    p:["<b>Volltextsuche:</b> <b>FILTER BY</b> filtert Pack-Liste und Einträge — Treffer werden hervorgehoben, die Metazeile zählt sie.",
+       "<b>Ruhezustand:</b> kompakter <b>Pack-Index</b> (Name · Zähler · Beschreibung), ein Klick öffnet genau ein Pack. Die Sprungleiste entfällt — sie skaliert nicht bei hunderten Packs.",
+       "<b>P5:</b> Typ-Filter als sichtbare Chips: Tutorial · Explanation · HowTo · Reference · Example — Mehrfachauswahl, „Alle“ setzt zurück.",
+       "<b>Kein Zustand:</b> installiert oder nicht ist hier nicht zu sehen. Erst der Klick auf einen Help-Patch lädt nach — <b>Ladebalken in der Zeile, danach direkt öffnen</b>.",
+       "<b>NEU:</b> <b>Reference ↗</b> führt ins <b>Greybook</b> (greybook.vvvv.org). Verwaltung lebt allein im <b>Packs-Tab</b>."]},
+  "neu-packs": {t:"Vorschlag: Browser → Packs", s:"Ein Pack-Browser: installiert, Updates, nuget.org",
+    p:["<b>P1:</b> Eine Liste mit aufklappbaren Sektionen <b>Updates · Installiert · Verfügbar</b> (wie VS Code Extensions) — die fehlende Übersicht [03:00].",
+       "<b>Filter oben statt Sidebar:</b> Suche, Kategorie ▾ (inkl. Herausgeber), Alle/Favoriten, Sort ▾.",
+       "<b>Gleicher Browser</b> wie im References-Fenster — dort heißt die Aktion <b>Add</b>, hier <b>Installieren</b>.",
+       "<b>Klick auf eine Zeile</b> öffnet das gerenderte <b>Readme</b> mit Install-Button.",
+       "<b>Dezenter Pfad:</b> NuGet-Ordner als graue Zeile unten; <b>--nuget-path</b> klappt man auf.",
+       "<b>Sofort-Hilfe:</b> Nach dem Install erscheinen Help-Patches, Referenzen und der <b>Willkommen-Patch</b> direkt im Pack."]},
+  "neu-ext": {t:"Vorschlag: Browser → Extensions", s:"Install-Flow mit Zustand und Anker",
+    p:["<b>P3:</b> Inline-Fortschritt statt blockierendem Dialog.",
+       "<b>P3:</b> Abschluss mit Zustand: ✅ + <b>Anker</b> „Windows → Spout Monitor“ (VS-Code-„Reload required“-Muster).",
+       "<b>P3:</b> Fehlerpfad mit Log-Link statt endlosem Warten."]},
+  "neu-shortcuts": {t:"Vorschlag: Browser → Shortcuts", s:"Zog aus Settings hierher",
+    p:["<b>Rolle:</b> Shortcuts gehören zum Lernen/Suchen — deshalb ein eigener Tab im Browser, nicht in Settings.",
+       "<b>Suchfeld</b> über allen Kürzeln: „Node“, „Help“, „Tab“ eingeben statt listenweise scannen.",
+       "<b>Vorschlag:</b> Kürzel direkt am Eintrag neu belegen (Klick → Taste drücken), keine separaten Dialoge.",
+       "<b>Gruppen:</b> Patch & Nodes · Browser & Hilfe · Allgemein — nach Handlungsraum, nicht nach alphabetisch."]},
+  "neu-settings": {t:"Vorschlag: Settings-Fenster", s:"Gedockt, genau eine Entscheidung: Theme",
+    p:["<b>Kein Sub-Tab:</b> Das Fenster enthält nur den Theme-Switcher (Dark · Light · High Contrast) — sofort wirksam auf die ganze App.",
+       "<b>Altes Tab-Chaos aufgelöst:</b> Extensions und Shortcuts sind Tabs im Browser, Themes ist dieses Fenster, Rest entfällt.",
+       "<b>Dockbar:</b> Es hängt unten an der Tab-Leiste (Browser · References · Settings) und schließt mit ✕ rechts oben.",
+       "<b>UX-Vorschlag:</b> Theme-Vorschau als echte Miniatur der Oberfläche statt nur Farbfeld — man sieht die Wirkung, bevor man klickt."]},
+  "neu-refs": {t:"Vorschlag: References (Fenster)", s:"Gedockt, wechselt mit dem Editor-Dokument",
+    p:["<b>Unterer Tab unten rechts</b> — wie im Recording: <b>Browser · References</b> (dort: Help Browser · Inspector · References) [03:16].",
+       "<b>P2:</b> Dokumentwechsel im Editor → Inhalt des Fensters wechselt mit (Demo: Dokument-Tabs oben).",
+       "<b>NEU:</b> <b>„Browse“ öffnet dasselbe Overlay</b> nur über dem References-Fenster — mit Screenshot-Zeilen, <b>Version-Dropdown</b>, <b>Download-Zahl</b> und <b>Remove</b> [10:00–10:14]. Das Bottom-Tab „Browse Packs“ entfällt.",
+       "<b>P7:</b> Nach dem Add kommt die Bestätigung mit Anker „Zum Patch springen“ — wie beim File-Add.",
+       "Layout wie im jetzigen UI: Pack-Liste mit Versionen, Add…/Add Recent…/Remove/Refresh. ✕ rechts oben statt Mac-Punkten."]},
+  "neu-spout": {t:"Vorschlag: Ergebnis nach Installation", s:"Der fehlende Zusammenhang wird hergestellt",
+    p:["<b>P3:</b> Nach der Installation zeigt der Anker genau das Ergebnis — inkl. Empty-State-Erklärung, <b>warum</b> es leer ist.",
+       "So unterscheidet der Nutzer „Installation OK, kein Input“ von „Installation kaputt“."]},
+};
+
+const SCREENS = [
+  {id:"neu-home", mode:"neu", label:"Browser → Welcome", tag:"Neu", note:"neu-home", build:neuHome},
+  {id:"neu-help", mode:"neu", label:"Browser → Help (Learn)", tag:"Neu", note:"neu-help", build:neuHelp},
+  {id:"neu-packs",mode:"neu", label:"Browser → Packs", tag:"Neu", note:"neu-packs", build:neuPacks},
+  {id:"neu-ext",  mode:"neu", label:"Browser → Extensions", tag:"Neu", note:"neu-ext", build:neuExt},
+  {id:"neu-shortcuts", mode:"neu", label:"Browser → Shortcuts", tag:"Neu", note:"neu-shortcuts", build:neuShortcuts},
+  {id:"neu-settings", mode:"neu", label:"Settings (Fenster)", tag:"Neu", note:"neu-settings", build:neuSettings},
+  {id:"neu-refs", mode:"neu", label:"References (Fenster)", tag:"Neu", note:"neu-refs", build:neuRefs},
+  {id:"neu-spout",mode:"neu", label:"Spout Monitor (Ergebnis)", tag:"Neu", note:"neu-spout", build:neuSpout},
+];
+
+const FLOWS = {
+  ext: {label:"① Extension-Installation", steps:[
+    {screen:"neu-ext",  hint:"Klick „Add“ bei VL.SpoutMonitor.HDE", key:"ext-add"},
+    {screen:"neu-ext",  hint:"Beobachte den Inline-Fortschritt …", key:"ext-progress"},
+    {screen:"neu-ext",  hint:"Klick den Anker „Windows → Spout Monitor“", key:"ext-anchor"},
+    {screen:"neu-spout",hint:"Leerer Zustand erklärt den Grund — Flowende", key:"__auto__"},
+  ]},
+  ref: {label:"② Pack-Referenzierung", steps:[
+    {screen:"neu-refs", hint:"Kein Dokument: Klick „Neues Dokument erstellen“", key:"ref-newdoc"},
+    {screen:"neu-refs", hint:"Klick „Browse“ im Bereich Packs (Overlay nur über dem References-Fenster)", key:"ref-addpack"},
+    {screen:"neu-refs", hint:"Klick „Add“ bei VL.OpenCV — das Pack wird heruntergeladen", key:"pack-download"},
+    {screen:"neu-refs", hint:"Im Overlay: Klick „Add“ bei VL.IO.MQTT (liegt bereits auf der Festplatte)", key:"pack-add"},
+    {screen:"neu-refs", hint:"Bestätigung: Klick „Zum Patch springen“", key:"ref-overlay"},
+    {screen:"neu-refs", hint:"Klick „Remove“ — die Referenz verschwindet, das Pack bleibt installiert", key:"ref-remove"},
+  ]},
+  learn: {label:"③ Help: Suche & Filter", steps:[
+    {screen:"neu-help", hint:"Klick ins Feld „FILTER BY“ und tippe „polygon“", key:"help-search"},
+    {screen:"neu-help", hint:"Klick ✕ — die Suche leert sich wieder", key:"help-clear"},
+    {screen:"neu-help", hint:"Klick in der Sidebar auf das Pack „2D.Voronoi“ — die Liste springt dorthin", key:"filter-pack"},
+    {screen:"neu-help", hint:"Klick den Typ „Reference“ → öffnet das Greybook", key:"filter-greybook"},
+    {screen:"neu-help", hint:"Feature-Karte: Klick „Follow-Mode erklären“", key:"follow-card"},
+  ]},
+  tour: {label:"④ Browser-Tour (Struktur)", steps:[
+    {screen:"neu-home", hint:"Klick die Statuszeile „… Updates verfügbar“", key:"statusline"},
+    {screen:"neu-packs",hint:"Klick „Alle Updates installieren“", key:"update-all"},
+    {screen:"neu-help", hint:"Klick Tab „Help“ — Typ-Filter oben, Sprungmarken darunter", key:"tab-help"},
+    {screen:"neu-refs", hint:"Wechsle im Editor das Dokument (Tab „HowTo Simplify…“)", key:"ref-docswitch"},
+  ]},
+  disc: {label:"⑤ Pack entdecken & installieren", steps:[
+    {screen:"neu-packs", hint:"Klick die Zeile VL.OpenCV — das Readme öffnet sich", key:"disc-card"},
+    {screen:"neu-packs", hint:"Klick „Installieren“ — das Readme bleibt dabei sichtbar", key:"disc-install"},
+    {screen:"neu-packs", hint:"Klick „Willkommen-Patch öffnen“ — Help ist schon da", key:"disc-welcome"},
+  ]},
+};
+
+/* =====================================================================
+   State
+   ===================================================================== */
+const state = {screen:"neu-home", flow:null, step:0,
+  doc:null,                 // null | 'callmenames' | 'howto' | 'doc2'
+  refOverlay:null,          // Overlay im References-Fenster: null | 'packs' | 'asm' | 'files'
+  packAdded:false, overlayShown:false, removed:false,
+  ext:{phase:"idle", pct:0},// idle | running | done
+  updatesDone:false,        // „Alle Updates installieren“ geklickt
+  helpTypes:[],             // Help-Filter Typ (Mehrfachauswahl, leer = Alle)
+  helpPack:"all",           // Help-Filter Pack: "all" (Index) | pack:NAME (genau ein Pack offen)
+  helpOpen:null,            // Name des im Index aufgeklappten Packs (Inline-Accordion)
+  helpSearch:"",            // Volltextsuche „FILTER BY“
+  helpDl:null,              // Pack, das gerade aus einem Help-Eintrag heruntergeladen wird
+  refExtra:[],              // per „Add“ ins Dokument geholte Packs (Overlay)
+  followOpen:false,
+  version:"v1",             // v1 | v2 (dockbare Fenster)
+  v2:null,                  // Dock-Layout der Version 2 (Baum, wird lazy erzeugt)
+  helpView:"pack",          // Help-Bereich: pack | shortcuts | community
+  /* — Runde 3 — */
+  theme:"dark",             // dark | light | hc  (Settings-Fenster)
+  settingsOpen:false,       // Settings als dritter Tab in der Dock-Spalte
+  lastBrowser:"neu-home",   // merkt sich den zuletzt offenen Browser-Tab (unterer Tab „Browser“)
+  packUI:null, refUI:null,  // Pack-Browser: Suche, Chip, Kategorie, Sortierung, Sektionen (Packs-Tab / References-Overlay)
+  discDetail:null,          // Pack-ID in der Readme-Ansicht
+  installed:null,           // dynamische Installationsliste (null = INSTALLED als Basis)
+  newlyInstalled:null,      // Pack, das gerade installiert wurde → Help-Patches/Welcome
+  installing:null};         // Pack-ID mit laufender Installation
+
+let autoTimer = null;
+let extTimer = null;
+let installTimer = null;
+
+const $ = s => document.querySelector(s);
+const el = (tag, cls, html) => {const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e;};
+const hot = (e,k) => {e.classList.add("hot"); e.dataset.flow=k; return e;};
+const isHot = k => state.flow && FLOWS[state.flow].steps[state.step].key===k;
+
+function toast(msg){const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"), 3200);}
+
+/* Dokumente (echte Namen aus dem Screencast) */
+const DOCS = {
+  callmenames:{label:"callmenames-2026-11-24.vl",
+    packs:[{n:"VL.CoreLib", v:"Built-In", ico:"▣", ok:true}],
+    files:[],
+    nodes:["MQTTClient","Renderer (EX9)"]},
+  howto:{label:"HowTo Simplify a polygon.vl",
+    packs:[{n:"VL.CoreLib", v:"Built-In", ico:"▣", ok:true},
+           {n:"VL.Skia", v:"2025.7.4", ico:"▣", ok:true}],
+    files:[{n:"VL2D.Simplify.vl"}],
+    nodes:["Console","MouseState","Simplify","Renderer"]},
+  doc2:{label:"Document-2.vl",
+    packs:[{n:"VL.CoreLib", v:"Built-In", ico:"▣", ok:true},
+           {n:"VL.Avalonia", v:"0.7.7", ico:"▣", ok:true}],
+    files:[],
+    asm:[{n:"PresentationFramework.AeroLite"}],
+    nodes:["Process1","Process2","Process3"]},
+};
+
+/* =====================================================================
+   Gemeinsame Fenster-Bausteine
+   ===================================================================== */
+function winShell(name, body, right="", onClose){
+  const w = el("div","win"+(name==="vvvv gamma"?" vvvvwin":""));
+  w.innerHTML = `<div class="win-title"><span class="name">${name}</span>
+     <span style="margin-left:auto;font-size:10px;color:var(--faint)">${right}</span>
+     <button class="wclose" title="Schließen">✕</button></div>`;
+  w.appendChild(body);
+  w.querySelector(".wclose").onclick = onClose || (()=>toast(`„${name}“ schließen — im Prototyp bleibt das Fenster offen`));
+  return w;
+}
+
+
+/* ---------------------------------------------------------------------
+   Editor-Kontext — gilt für ALLE Fenster-Vorschläge (References UND Browser):
+   Menüleiste, offene Dokumente als Tabs oben, Patch-Canvas mit Process-Nodes.
+   --------------------------------------------------------------------- */
+const DOC_TABS = [["callmenames","callmenames-2026-11-24.vl"],
+                  ["howto","HowTo Simplify a polygon.vl"],
+                  ["doc2","Document-2.vl"]];
+
+function docTabsHTML(){
+  let html = `<div class="mbar">`;
+  DOC_TABS.forEach(([k,l])=>{
+    const active = state.doc===k;
+    const hotAttr = (k==="howto" && isHot("ref-docswitch")) ? ' class="hot" data-flow="ref-docswitch"' : "";
+    html += `<span data-doc="${k}" style="${active?"background:#1a1a1a;color:#d4d4d4;font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)":""}"${hotAttr}>${l} ✕</span>`;
+  });
+  return html + `</div>`;
+}
+
+function canvasHTML(){
+  const d = state.doc ? DOCS[state.doc] : null;
+  return d
+    ? `<div class="docname">${d.label}</div>` + d.nodes.map(n=>`<div class="node">${n}</div>`).join("")
+    : `<div class="empty">no App — File → New</div>`;
+}
+
+/* Körper des Hauptfensters: Tabs oben + Canvas, rechts das jeweilige Fenster */
+function editorShell(rightEl){
+  const body = el("div");
+  body.innerHTML = docTabsHTML() + `
+    <div class="app">
+      <div class="canvas">${canvasHTML()}
+        <div class="statusbar" style="position:absolute;bottom:0;left:0;right:0">
+          <span>Public Channels${state.doc?": 2 aktiv":": no App"}</span>
+          <span style="margin-left:auto">Console Output</span></div>
+      </div>
+    </div>`;
+  if(rightEl) body.querySelector(".app").appendChild(rightEl);
+
+  /* Dokument-Tabs oben gelten für ALLE Fenster (References, Browser, …) */
+  body.querySelectorAll("[data-doc]").forEach(s=>{
+    s.onclick = ()=>{
+      state.doc = s.dataset.doc;
+      if(!flowAdvance("ref-docswitch")) render();
+      toast(`Editor-Wechsel → ${DOCS[state.doc].label} — References folgt automatisch`);
+    };
+  });
+  return body;
+}
+
+/* Dock-Spalte rechts — wie im Recording: Fenster, darunter die Tab-Leiste
+   (dort: Help Browser · Inspector · References). Hier: Browser · References,
+   ein dritter Tab „Settings“ erscheint nur, wenn das Settings-Fenster offen ist. */
+function dockColumn(active, winEl){
+  const col = el("div","dockcol");
+  col.appendChild(winEl);
+
+  const tabs = el("div","btabs");
+  const defs = [["browser","Browser","▤", ()=>goto(state.lastBrowser||"neu-home")],
+                ["refs","References","▣", ()=>goto("neu-refs")]];
+  if(active==="settings" || state.settingsOpen)
+    defs.push(["settings","Settings","⚙", ()=>goto("neu-settings")]);
+  defs.forEach(([k,l,ic,go])=>{
+    const b = el("button", active===k?"on":"", `<span class="ic">${ic}</span>${l}`);
+    b.onclick = ()=>{ if(active===k){ toast(`„${l}“ ist bereits aktiv`); return; } go(); };
+    tabs.appendChild(b);
+  });
+  col.appendChild(tabs);
+  return col;
+}
+
+/* References-Fenster: eigene Fenster-Chrome (Titel + ✕), kein Bottom-Tab mehr */
+function dockPanel(title, sub, contentHTML, onClose){
+  const d = el("div","win dockwin");
+  d.innerHTML = `<div class="win-title"><span class="name">${title}</span>
+     <span style="margin-left:auto;font-size:10px;color:var(--faint)">${sub}</span>
+     <button class="wclose" title="Schließen">✕</button></div>
+    <div class="tabpane on">${contentHTML}</div>`;
+  d.querySelector(".wclose").onclick = onClose ||
+    (()=>toast("References schließen — im Prototyp bleibt das Fenster offen"));
+  return d;
+}
+
+/* =====================================================================
+   NEU: Browser-Shell
+   ===================================================================== */
+/* Browser = gedocktes Fenster in der rechten Spalte (wie References),
+   Chrome: Titel + ✕ rechts oben — Tabs UNTEN wechseln zwischen Browser & References */
+function browserShell(activeTab, paneContent){
+  const w = el("div","win dockwin");
+  w.innerHTML = `<div class="win-title"><span class="name">Browser</span>
+     <span style="margin-left:auto;font-size:10px;color:var(--faint)">gedockt · folgt dem Editor</span>
+     <button class="wclose" title="Schließen">✕</button></div>`;
+  w.querySelector(".wclose").onclick = ()=>toast("Browser schließen — im Prototyp bleibt das Fenster offen");
+  const tabs = el("div","tabs");
+  [["home","Welcome","neu-home"],["help","Help","neu-help"],["packs","Packs","neu-packs"],
+   ["ext","Extensions","neu-ext"],["shortcuts","Shortcuts","neu-shortcuts"]]
+    .forEach(([k,l,target])=>{
+    const b = el("button","tab"+(activeTab===k?" on":""));
+    b.innerHTML = l + (k==="packs" && !state.updatesDone?' <span class="bdg">2</span>':"")
+                     + (k==="ext"?' <span class="bdg blue">1</span>':"");
+    b.onclick = ()=>{ if(k==="help"){ if(!flowAdvance("tab-help")) goto(target); }
+                      else goto(target); };
+    if(k==="help" && isHot("tab-help")) hot(b,"tab-help");
+    tabs.appendChild(b);
+  });
+  w.appendChild(tabs);
+  const pane = el("div","tabpane on"+(activeTab==="help"?" fill":""));
+  pane.appendChild(paneContent);
+  w.appendChild(pane);
+  return w;
+}
+
+function neuHome(){
+  const wrap = el("div");
+  const c = el("div");
+  const sl = el("div","statusline");
+  sl.innerHTML = `<span>⚡</span><span><b>2 Pack-Updates</b> und <b>1 Extension-Update</b> verfügbar</span>
+    <button class="btn sm">Anzeigen</button>`;
+  sl.style.cursor = "pointer";
+  sl.onclick = ()=>{ if(!flowAdvance("statusline")) goto("neu-packs"); };
+  if(isHot("statusline")) hot(sl,"statusline");
+  c.appendChild(sl);
+
+  c.appendChild(el("div","h2","Willkommen"));
+  const cards = el("div","cards");
+  [["Neues Dokument","File → New — leeres Patch-Canvas","refs"],
+   ["Dokument öffnen","Zuletzt: callmenames-2026-11-24.vl, HowTo Simplify a polygon.vl","refs"],
+   ["Packs entdecken","Installiert, Updates & nuget.org in einer Liste","packs"],
+   ["Etwas lernen","HowTos, Tutorials, Follow-Mode","help"],
+   ["Einstellungen","Theme wechseln — ein Fenster, keine Sub-Tabs","settings"]].forEach(([t,d,go])=>{
+    const k = el("div","card click");
+    k.innerHTML = `<div class="t">${t}</div><div class="d">${d}</div>`;
+    k.onclick = ()=>goto("neu-"+go);
+    cards.appendChild(k);
+  });
+  c.appendChild(cards);
+
+  c.appendChild(el("div","h2","Zuletzt verwendet"));
+  const rec = el("div");
+  rec.innerHTML = `
+    <div class="hl"><span class="badge ref">Dokument</span><span class="t">callmenames-2026-11-24.vl</span><span class="m">1 Pack · vor 2 Std.</span></div>
+    <div class="hl"><span class="badge ref">Dokument</span><span class="t">HowTo Simplify a polygon.vl</span><span class="m">2 Packs · heute</span></div>
+    <div class="hl"><span class="badge ref">Dokument</span><span class="t">Document-2.vl</span><span class="m">2 Packs + 1 Assembly</span></div>`;
+  c.appendChild(rec);
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("home", c)))));
+  return wrap;
+}
+
+/* ---------- Help (Learn) ---------- */
+/* Help-Inhalte — Namen aus dem Screencast ([05:17] Kategorien, [09:19] Polygon,
+   [05:27] Referenzen, [05:39] YouTube-Tutorials, Frame 456: Buffers/LerpX) */
+const HELP_ITEMS = [
+  {k:"howto", t:"HowTo: Simplify a polygon", m:"2D.Simplify", pack:"2D.Simplify", fav:true},
+  {k:"howto", t:"HowTo: Programmatically capture and trigger public channel presets", m:"VL.CoreLib", pack:"VL.CoreLib"},
+  {k:"howto", t:"HowTo: Follow-Mode & Node-Info nutzen", m:"Discovery", pack:"VL.CoreLib"},
+  {k:"ref",   t:"2D.Voronoi — Funktionen & Argumente", m:"Greybook", pack:"2D.Voronoi", gw:true, fav:true},
+  {k:"ref",   t:"Reference: FromKelvin (Addons.Color)", m:"Greybook", pack:"Addons.Color", gw:true},
+  {k:"tut",   t:"Getting started with vvvv", m:"6 Schritte", pack:"VL.CoreLib", fav:true},
+  {k:"tut",   t:"Getting an Access Token (Spotify)", m:"Tutorial", pack:"VL.CoreLib"},
+  {k:"tut",   t:"Introduction for absolute beginners", m:"By Chk · wwwTv", pack:"VL.CoreLib"},
+  {k:"tut",   t:"wwwTv — Tutorials & Courses", m:"▶ YouTube", pack:"VL.CoreLib"},
+  {k:"tut",   t:"Deep Dive: Spout", m:"▶ YouTube", pack:"VL.SpoutMonitor.HDE"},
+  {k:"expl",  t:"Explanation: Frames, Regions & Ausführungsreihenfolge", m:"Konzept", pack:"VL.CoreLib"},
+  {k:"expl",  t:"Explanation: Spread vs. Channel", m:"Konzept", pack:"VL.CoreLib"},
+  {k:"ex",    t:"2DUtils Demos", m:"Example-Patch", pack:"2DUtils"},
+  {k:"ex",    t:"VLGameAudioPlayer", m:"Example", pack:"VL.GameAudio"},
+  /* — nicht installiert: diese Einträge fliegen beim Filter „Installed Packs“ raus — */
+  {k:"howto", t:"HowTo: LerpX interpolieren", m:"LerpX", pack:"LerpX"},
+  {k:"ex",    t:"Buffers — Example Patches", m:"Example", pack:"Buffers"},
+  {k:"tut",   t:"Elementa Widget-Grundlagen", m:"The Node Institute", pack:"Elementa"},
+  {k:"tut",   t:"OpenCV in vvvv gamma", m:"▶ YouTube", pack:"VL.OpenCV"},
+  /* — diese erscheinen erst, sobald VL.OpenCV installiert ist (Runde 3) — */
+  {k:"howto", t:"HowTo: Konturen finden & vereinfachen", m:"VL.OpenCV", pack:"VL.OpenCV"},
+  {k:"ex",    t:"VL.OpenCV Welcome — Beispiel-Patches", m:"Welcome-Patch", pack:"VL.OpenCV", fav:true},
+  {k:"ref",   t:"Reference: VL.OpenCV Nodes", m:"Greybook", pack:"VL.OpenCV", gw:true},
+];
+
+/* Help-Einträge aus dem nuget-Katalog (data.js): [Typ, Titel, Sektion].
+   Nur Packs mit ≥1 Eintrag; Dedupe gegen die kuratierten Einträge oben. */
+(function mergeRealHelp(){
+  const seen = new Set(HELP_ITEMS.map(i=>i.pack+"::"+i.t));
+  PD.packs.forEach(pk=>{
+    (pk.h||[]).forEach(([k,t,sec])=>{
+      if(!["tut","expl","howto","ref","ex"].includes(k)) return;
+      const key = pk.i+"::"+t;
+      if(seen.has(key)) return;
+      seen.add(key);
+      HELP_ITEMS.push({k, t, m:sec||pk.i, pack:pk.i, sec:sec||null});
+    });
+  });
+})();
+/* Basis wie im Screencast + alles, was shipped-packages.json als installiert meldet */
+const BASE_INSTALLED = ["2D.Simplify","2D.Voronoi","2DUtils","Addons.Color","Addons.Control",
+                   "VL.CoreLib","VL.IO.MQTT","VL.SpoutMonitor.HDE","VL.Skia","VL.Avalonia",
+                   "VL.Rive","VL.Animation.Spline"];
+const INSTALLED = [...new Set(BASE_INSTALLED.concat(SHIPPED))];
+/* Live-Liste: wächst, sobald der Nutzer im Entdecken-Tab etwas installiert */
+const installedPacks = ()=> state.installed || INSTALLED;
+const isInstalled = i => installedPacks().includes(i.pack);
+
+/* ---------- Help: Typ- und Pack-Filter oben, Sprungmarken darunter (kein Sidebar) ---------- */
+const HELP_TYPES = [["tut","Tutorial"],["expl","Explanation"],["howto","HowTo"],["ref","Reference"],["ex","Example"]];
+const HELP_LABEL = {howto:"HowTo", tut:"Tutorial", expl:"Explanation", ref:"Reference", ex:"Example"};
+
+/* Sektionen je Eintrag — Reihenfolge wie im Help-Browser */
+function helpSectionOf(i){
+  if(i.sec) return i.sec;               /* echter Unterordner aus dem nupkg */
+  if(i.k==="tut") return (i.m.includes("▶")||i.m.includes("wwwTv")) ? "Tutorials & Courses" : "Getting Started";
+  if(i.k==="expl") return "Explanations";
+  if(i.k==="howto") return "HowTos";
+  if(i.k==="ref") return "References";
+  return "Examples";
+}
+/* Autoren / Version je Pack — aus dem nuget-Katalog, sonst wie im Ist */
+function helpPackInfo(pack){
+  const p = allPacks().find(x=>x.n===pack);
+  return {author: p ? (p.author==="vvvv" ? "vvvv group" : p.author) : "vvvv group",
+          version: p ? p.v : "8.0-0369-g91b925904d", id: p ? p.id : null,
+          desc: p ? p.d : "Help-Patches, Tutorials & Referenzen"};
+}
+
+/* Volltextsuche: Treffer im Titel hervorheben */
+function hlText(text, q){
+  if(!q) return text;
+  const idx = text.toLowerCase().indexOf(q);
+  if(idx<0) return text;
+  return text.slice(0,idx)+'<span class="hit">'+text.slice(idx,idx+q.length)+'</span>'+text.slice(idx+q.length);
+}
+
+/* Help-Eintrag aus einem Pack, das noch nicht auf der Festplatte ist:
+   Ladebalken in der Zeile → beim Fertigsein direkt öffnen.
+   Der Zustand wird nicht vorab angezeigt — er erscheint erst beim Benutzen. */
+function helpDownload(i, row){
+  if(state.helpDl) return;
+  const icon = row.querySelector(".ei");
+  icon.innerHTML = `<span class="dlbar"><span class="track"><i></i></span><span class="pct">0%</span></span>`;
+  const bar = icon.querySelector(".dlbar");
+  let p = 0, timer = null;
+  const fail = ()=>{
+    clearInterval(timer); timer=null; state.helpDl=null;
+    bar.classList.add("err");
+    bar.querySelector(".pct").textContent = "↻";
+    bar.title = "Download fehlgeschlagen — klicken zum Wiederholen";
+    bar.onclick = ()=>{ bar.classList.remove("err"); bar.title=""; bar.onclick=null; start(); };
+  };
+  const start = ()=>{
+    state.helpDl = i.pack; p = 0;
+    timer = setInterval(()=>{
+      if(!navigator.onLine){ fail(); return; }
+      p = Math.min(100, p + 8 + Math.random()*10);
+      bar.querySelector("i").style.width = p+"%";
+      bar.querySelector(".pct").textContent = Math.round(p)+"%";
+      if(p>=100){
+        clearInterval(timer); timer=null; state.helpDl=null;
+        if(!installedPacks().includes(i.pack)) state.installed = installedPacks().concat([i.pack]);
+        icon.innerHTML = "✓";
+        toast(`${i.pack} heruntergeladen — öffne: ${i.t}`);
+      }
+    }, 90);
+  };
+  start();
+}
+
+let helpDlTimer = null;
+/* Download eines ganzen Packs aus dem Help-Browser: der Balken gehört zum Pack
+   (Sidebar-Zeile + Pack-Kopf). Danach ist das Pack grün und alle Einträge öffnen direkt. */
+function helpPackDl(pk){
+  if(state.helpDl) return;
+  state.helpDl = pk; state.helpPct = 0; state.helpErr = null;
+  clearInterval(helpDlTimer);
+  helpDlTimer = setInterval(()=>{
+    if(!navigator.onLine){
+      clearInterval(helpDlTimer); helpDlTimer = null;
+      state.helpDl = null; state.helpErr = pk; render();
+      toast(`${pk}: Download fehlgeschlagen — erneut versuchen`);
+      return;
+    }
+    state.helpPct = Math.min(100, state.helpPct + 8 + Math.random()*10);
+    document.querySelectorAll(`[data-dl="${pk}"] i`).forEach(b=>b.style.width = state.helpPct+"%");
+    document.querySelectorAll(`[data-dl="${pk}"] .pct`).forEach(p=>p.textContent = Math.round(state.helpPct)+"%");
+    if(state.helpPct>=100){
+      clearInterval(helpDlTimer); helpDlTimer = null;
+      state.helpDl = null;
+      state.installed = installedPacks().concat([pk]);
+      render();
+      toast(state.helpWant ? `${pk} geladen — öffnet „${state.helpWant}“` : `${pk} geladen`);
+    }
+  }, 90);
+}
+
+function neuHelp(){
+  const wrap = el("div");
+  const pane = el("div","hbpane");
+  const side = el("div","hbside");
+  const types = el("div","hbtypes");
+  const packList = el("div","hbpacks");
+  side.appendChild(types); side.appendChild(packList);
+  const main = el("div","hbmain");
+  const fb = el("div","pbar");
+  const meta = el("div","hmeta");
+  const sc = el("div","hbscroll");
+  main.appendChild(fb); main.appendChild(meta); main.appendChild(sc);
+  pane.appendChild(side); pane.appendChild(main);
+
+  /* Sprung aus dem Pack-Browser oder von „Help-Inhalte“: Pack anspringen statt Filter setzen */
+  if(state.helpPack!=="all"){ state.helpJump = state.helpPack.slice(5); state.helpPack = "all"; }
+
+  const search = el("input","fsearch");
+  search.placeholder = "FILTER BY …";
+  search.value = state.helpSearch;
+  search.dataset.flow = "help-search";
+  if(isHot("help-search")) search.classList.add("hot");
+  const sbox = el("span","");
+  sbox.style.cssText = "display:flex;align-items:center;gap:5px;flex:1 1 190px;min-width:150px";
+  const clr = el("button","chip","✕");
+  clr.title = "Suche leeren";
+  clr.style.display = state.helpSearch ? "" : "none";
+  if(isHot("help-clear")) hot(clr,"help-clear");
+  clr.onclick = ()=>{ state.helpSearch=""; if(!flowAdvance("help-clear")) render(); };
+  search.oninput = e=>{
+    state.helpSearch = e.target.value;
+    clr.style.display = state.helpSearch ? "" : "none";
+    if(flowAdvance("help-search")) return;
+    redraw();
+  };
+  sbox.appendChild(search); sbox.appendChild(clr);
+  fb.appendChild(sbox);
+
+  const updateActive = ()=>{
+    let cur = null;
+    sc.querySelectorAll(".pkh").forEach(h=>{ if(h.offsetTop - sc.scrollTop <= 6) cur = h.dataset.pk; });
+    packList.querySelectorAll(".pkb").forEach(b=>b.classList.toggle("on", b.dataset.pk===cur));
+  };
+  const jumpTo = pk => {
+    const h = [...sc.querySelectorAll(".pkh")].find(x=>x.dataset.pk===pk);
+    if(h){ sc.scrollTop = h.offsetTop - 2; state.helpScroll = sc.scrollTop; }
+    updateActive();
+  };
+  sc.onscroll = ()=>{ state.helpScroll = sc.scrollTop; updateActive(); };
+
+  const featureCard = ()=>{
+    const f = el("div","card");
+    f.innerHTML = `<div class="t">Follow-Mode &amp; Node-Info</div>
+      <div class="d">Selektiere ein Node → siehe, in welchen Help-Patches es vorkommt.
+        <div id="followBody" style="display:${state.followOpen?"block":"none"};margin-top:7px;color:#b9d9f3;border-top:1px dashed var(--border2);padding-top:7px">
+        So findest du Beispiel-Patches für genau den Knoten, den du gerade verstehen willst —
+        ohne zu wissen, welches Pack ihn enthält.</div></div>`;
+    const fbtn = el("button","btn sm", state.followOpen?"Erklärung ausblenden":"Follow-Mode erklären");
+    fbtn.style.marginTop = "8px";
+    fbtn.onclick = ()=>{
+      state.followOpen = !state.followOpen;
+      if(!flowAdvance("follow-card")) render();
+    };
+    if(isHot("follow-card")) hot(fbtn,"follow-card");
+    f.appendChild(fbtn);
+    const box = el("div","");
+    box.appendChild(el("div","h2","Features, die du kennen solltest"));
+    box.appendChild(f);
+    return box;
+  };
+
+  const redraw = ()=>{
+    const q = state.helpSearch.trim().toLowerCase();
+    const textOk = i => !q || (i.t+" "+i.m+" "+i.pack).toLowerCase().includes(q);
+    const typeOk = i => !state.helpTypes.length || state.helpTypes.includes(i.k);
+    const textHits = HELP_ITEMS.filter(textOk);
+    const items = textHits.filter(typeOk);
+    const groups = [];
+    items.forEach(i=>{
+      let g = groups.find(x=>x.pack===i.pack);
+      if(!g){ g = {pack:i.pack, items:[]}; groups.push(g); }
+      g.items.push(i);
+    });
+    groups.sort((a,b)=>a.pack.toLowerCase().localeCompare(b.pack.toLowerCase()));
+
+    /* Sidebar · Typ-Filter (fest oben) */
+    types.innerHTML = "";
+    const row = (cls, html, fn)=>{ const b = el("button", cls, html); b.onclick = fn; return b; };
+    types.appendChild(row(!state.helpTypes.length?"on":"",
+      `<span class="nm">Alle</span><span class="n">${textHits.length}</span>`,
+      ()=>{ state.helpTypes = []; state.helpView = "pack"; render(); }));
+    HELP_TYPES.forEach(([k,l])=>{
+      const on = state.helpTypes.includes(k);
+      const n = textHits.filter(i=>i.k===k).length;
+      const b = row(on?"on":"", `<span class="tdot ${k}"></span><span class="nm">${l}${k==="ref"?" ↗":""}</span><span class="n">${n}</span>`, ()=>{
+        if(k==="ref" && isHot("filter-greybook")){
+          window.open("https://greybook.vvvv.org","_blank","noopener");
+          flowAdvance("filter-greybook");
+          toast("Öffnet greybook.vvvv.org — die echte Dokumentation");
+          return;
+        }
+        state.helpTypes = on ? state.helpTypes.filter(x=>x!==k) : state.helpTypes.concat([k]);
+        state.helpView = "pack";
+        render();
+      });
+      if(k==="ref" && isHot("filter-greybook")) hot(b,"filter-greybook");
+      types.appendChild(b);
+    });
+    types.appendChild(el("div","sg","Mehr"));
+    [["shortcuts","Shortcuts"],["community","Community & Links"]].forEach(([k,l])=>{
+      types.appendChild(row(state.helpView===k?"on":"", `<span class="nm">${l}</span>`,
+        ()=>{ state.helpView = state.helpView===k ? "pack" : k; render(); }));
+    });
+
+    /* Sidebar · Packs (Sprungmarken) */
+    packList.innerHTML = "";
+    packList.appendChild(el("div","sg",`Packs · ${groups.length}`));
+    groups.forEach(g=>{
+      const inst = installedPacks().includes(g.pack);
+      let tail = `<span class="n">${g.items.length}</span>`;
+      if(state.helpDl===g.pack) tail = `<span class="dlx" data-dl="${g.pack}"><span class="mini"><i style="width:${state.helpPct}%"></i></span><span class="pct">${Math.round(state.helpPct)}%</span></span>`;
+      else if(state.helpErr===g.pack) tail = `<span class="n" style="color:#e8a49c">↻ Erneut</span>`;
+      const b = el("button", "pkb"+(inst?" in":""));
+      b.dataset.pk = g.pack;
+      b.innerHTML = `<span class="sdot${inst?" ok":""}"></span><span class="nm">${g.pack}</span>${tail}`;
+      if(g.pack==="2D.Voronoi" && isHot("filter-pack")) hot(b,"filter-pack");
+      b.onclick = ()=>{
+        if(state.helpErr===g.pack){ state.helpErr = null; helpPackDl(g.pack); render(); return; }
+        if(state.helpView!=="pack"){ state.helpView = "pack"; state.helpJump = g.pack; render(); return; }
+        jumpTo(g.pack);
+        if(g.pack==="2D.Voronoi") flowAdvance("filter-pack");
+      };
+      packList.appendChild(b);
+    });
+
+    if(state.helpView!=="pack"){
+      meta.innerHTML = "";
+      sc.innerHTML = "";
+      sc.appendChild(state.helpView==="shortcuts" ? helpShortcutsEl() : helpCommunityEl());
+      updateActive();
+      return;
+    }
+
+    /* Hauptbereich · Meta + gruppierte Liste mit klebenden Pack-Köpfen */
+    meta.innerHTML = `<div style="font-size:10.5px;color:var(--faint)">${q
+        ? `${items.length} Treffer in ${groups.length} Packs`
+        : `${groups.length} Packs · ${items.length} Einträge`}${state.helpTypes.length ? ` · ${state.helpTypes.length} Typ${state.helpTypes.length>1?"en":""}` : ""}</div>`;
+
+    sc.innerHTML = "";
+    if(!items.length) sc.appendChild(el("div","emptybox","Keine Treffer für diesen Filter."));
+    groups.forEach(g=>{
+      const inst = installedPacks().includes(g.pack);
+      const info = helpPackInfo(g.pack);
+      const h = el("div","pkh"+(inst?" in":""));
+      h.dataset.pk = g.pack;
+      h.innerHTML = `<span class="pkn">${hlText(g.pack,q)}</span><span class="pkc">${g.items.length}</span>
+        <span class="pka">${info.author} · ${info.version}</span><span class="pkx"></span>`;
+      const x = h.querySelector(".pkx");
+      if(state.helpDl===g.pack) x.innerHTML = `<span class="dlx" data-dl="${g.pack}"><span class="mini"><i style="width:${state.helpPct}%"></i></span><span class="pct">${Math.round(state.helpPct)}%</span></span>`;
+      else if(state.helpErr===g.pack){
+        const rt = el("button","btn sm","↻ Erneut");
+        rt.onclick = ()=>{ state.helpErr = null; helpPackDl(g.pack); render(); };
+        x.appendChild(rt);
+      }
+      const rb = el("button","btn sm","Readme");
+      rb.onclick = ()=>{
+        if(info.id && DIS_BY_ID(info.id)?.readme){
+          state.discDetail = info.id; goto("neu-packs");
+          toast(`Readme von ${g.pack} geöffnet`);
+        } else toast(`Readme von ${g.pack} folgt`);
+      };
+      x.appendChild(rb);
+      sc.appendChild(h);
+
+      const secOrder = [], bySec = {};
+      g.items.forEach(i=>{
+        const s = helpSectionOf(i);
+        if(!bySec[s]){ bySec[s]=[]; secOrder.push(s); }
+        bySec[s].push(i);
+      });
+      secOrder.forEach(s=>{
+        sc.appendChild(el("div","hsec",s));
+        const box = el("div","hentries");
+        bySec[s].forEach(i=>{
+          const a = el("button","hentry");
+          const yt = i.m.includes("▶") || i.m.includes("YouTube");
+          const busy = state.helpDl===i.pack;
+          a.innerHTML = `<span class="tdot ${i.k}"></span><span class="et">${hlText(i.t,q)}</span>
+            <span class="ei">${busy?"lädt …":(yt?"▶":"📄")}</span>`;
+          a.onclick = ()=>{
+            if(i.gw){ window.open("https://greybook.vvvv.org","_blank","noopener");
+                      toast("Öffnet greybook.vvvv.org — die echte Dokumentation"); return; }
+            if(inst){ toast(`Öffnet: ${i.t}`); return; }
+            if(state.helpDl){ toast(`${state.helpDl} lädt bereits …`); return; }
+            state.helpWant = i.t;
+            helpPackDl(i.pack);
+            render();
+          };
+          box.appendChild(a);
+        });
+        sc.appendChild(box);
+      });
+    });
+    if(!isV2()) sc.appendChild(featureCard());
+    updateActive();
+  };
+
+  redraw();
+  /* Scrollposition erst nach dem Einhängen setzen (Layout existiert vorher nicht) */
+  requestAnimationFrame(()=>{
+    if(state.helpJump){ const pk = state.helpJump; state.helpJump = null; jumpTo(pk); }
+    else sc.scrollTop = state.helpScroll || 0;
+    updateActive();
+  });
+
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("help", pane)))));
+  return wrap;
+}
+
+function neuHelpOld(){
+  const wrap = el("div");
+  const pane = el("div","hbpane");
+  const c = el("div");            /* Filterzeile, klebt fest */
+  const sc = el("div","hbscroll");/* nur dieser Bereich scrollt */
+
+  /* Filterzeile: FILTER BY (Volltext) · Typ-Chips · Pack ▾ */
+  const fb = el("div","pbar");
+  const sbox = el("span","");
+  sbox.style.cssText = "display:flex;align-items:center;gap:5px;flex:1 1 190px;min-width:150px";
+  const search = el("input","fsearch");
+  search.placeholder = "FILTER BY …";
+  search.value = state.helpSearch;
+  search.dataset.flow = "help-search";
+  if(isHot("help-search")) search.classList.add("hot");
+  const clr = el("button","chip","✕");
+  clr.title = "Suche leeren";
+  clr.style.display = state.helpSearch ? "" : "none";
+  if(isHot("help-clear")) hot(clr,"help-clear");
+  clr.onclick = ()=>{ state.helpSearch=""; if(!flowAdvance("help-clear")) render(); };
+  search.oninput = e=>{
+    state.helpSearch = e.target.value;
+    clr.style.display = state.helpSearch ? "" : "none";
+    if(flowAdvance("help-search")) return;
+    redraw();
+  };
+  sbox.appendChild(search);
+  sbox.appendChild(clr);
+  fb.appendChild(sbox);
+
+  const noTypes = !state.helpTypes.length;
+  const allBtn = el("button","chip"+(noTypes?" on":""),"Alle");
+  allBtn.onclick = ()=>{ state.helpTypes=[]; render(); };
+  fb.appendChild(allBtn);
+  HELP_TYPES.forEach(([k,l])=>{
+    const on = state.helpTypes.includes(k);
+    const b = el("button","chip"+(on?" on":""));
+    b.innerHTML = `<span class="tdot ${k}"></span>${l}${k==="ref"?" ↗":""}`;
+    b.onclick = ()=>{
+      if(k==="ref" && isHot("filter-greybook")){
+        window.open("https://greybook.vvvv.org","_blank","noopener");
+        flowAdvance("filter-greybook");
+        toast("Öffnet greybook.vvvv.org — die echte Dokumentation");
+        return;
+      }
+      state.helpTypes = on ? state.helpTypes.filter(x=>x!==k) : state.helpTypes.concat([k]);
+      render();
+    };
+    if(k==="ref" && isHot("filter-greybook")) hot(b,"filter-greybook");
+    fb.appendChild(b);
+  });
+  const pg = el("span","");
+  pg.style.cssText = "margin-left:auto;display:flex;gap:6px;align-items:center;font-size:10.5px;color:var(--faint)";
+  pg.innerHTML = "Pack ▾";
+  const sel = el("select","psel");
+  const packOpts = [["all","Alle Packs"]]
+    .concat([...new Set(HELP_ITEMS.map(i=>i.pack))].map(n=>["pack:"+n, n]));
+  sel.innerHTML = packOpts.map(([v,l])=>`<option value="${v}"${state.helpPack===v?" selected":""}>${l}</option>`).join("");
+  sel.onchange = ()=>{
+    state.helpPack = sel.value;
+    if(sel.value!=="all" && flowAdvance("filter-pack")) return;
+    render();
+  };
+  if(isHot("filter-pack")) hot(sel,"filter-pack");
+  pg.appendChild(sel);
+  fb.appendChild(pg);
+  c.appendChild(fb);
+
+  const meta = el("div","hmeta");
+  c.appendChild(meta);
+
+  /* Feature-Entdeckung — wird bei jedem Neuzeichnen mit eingehängt */
+  const featureCard = ()=>{
+    const f = el("div","card");
+    f.innerHTML = `<div class="t">Follow-Mode &amp; Node-Info</div>
+      <div class="d">Selektiere ein Node → siehe, in welchen Help-Patches es vorkommt.
+        <div id="followBody" style="display:${state.followOpen?"block":"none"};margin-top:7px;color:#b9d9f3;border-top:1px dashed var(--border2);padding-top:7px">
+        So findest du Beispiel-Patches für genau den Knoten, den du gerade verstehen willst —
+        ohne zu wissen, welches Pack ihn enthält. (Im Ist: Sub-Tab „Follow-Mode“ und Rechtsklick → Node Info [05:59])</div></div>`;
+    const fbtn = el("button","btn sm", state.followOpen?"Erklärung ausblenden":"Follow-Mode erklären");
+    fbtn.style.marginTop="8px";
+    fbtn.onclick = ()=>{
+      state.followOpen=!state.followOpen;
+      if(!flowAdvance("follow-card")) render();
+    };
+    if(isHot("follow-card")) hot(fbtn,"follow-card");
+    f.appendChild(fbtn);
+    const h = el("div","h2","Features, die du kennen solltest");
+    const box = el("div","");
+    box.appendChild(h); box.appendChild(f);
+    return box;
+  };
+
+  /* Inhalt neu zeichnen — die Filterzeile bleibt dabei unangetastet (Suchfokus bleibt) */
+  const redraw = ()=>{
+    const q = state.helpSearch.trim().toLowerCase();
+    const typeOk = i => !state.helpTypes.length || state.helpTypes.includes(i.k);
+    const textOk = i => !q || (i.t+" "+i.m+" "+i.pack).toLowerCase().includes(q);
+    const packOk = i => state.helpPack==="all" || i.pack===state.helpPack.slice(5);
+    const items = HELP_ITEMS.filter(i=>typeOk(i)&&textOk(i)&&packOk(i));
+    const groups = [];
+    items.forEach(i=>{
+      let g = groups.find(x=>x.pack===i.pack);
+      if(!g){ g = {pack:i.pack, items:[]}; groups.push(g); }
+      g.items.push(i);
+    });
+
+    const extra = (state.helpTypes.length ? ` · ${state.helpTypes.length} Typ${state.helpTypes.length>1?"en":""}` : "")
+                + (state.helpPack!=="all" ? ` · ${state.helpPack.slice(5)}` : "");
+    meta.innerHTML = `<div style="font-size:10.5px;color:var(--faint)">${q
+        ? `${items.length} Treffer in ${groups.length} Packs`
+        : `${groups.length} Packs · ${items.length} Einträge`}${extra}</div>`;
+
+    sc.innerHTML = "";
+    if(!items.length){
+      sc.appendChild(el("div","emptybox","Keine Treffer für diesen Filter."));
+      sc.appendChild(featureCard());
+      return;
+    }
+
+    /* Pack-Index mit Inline-Accordion: ein Klick klappt die Einträge unter der Zeile auf —
+       keine eigene Seite, kein „‹ Alle Packs“. Bei Suche sind alle Treffer-Gruppen offen. */
+    const openName = state.helpPack!=="all" ? state.helpPack.slice(5) : state.helpOpen;
+    groups.forEach(g=>{
+      const info = helpPackInfo(g.pack);
+      const isOpen = !!q || g.pack===openName;
+      const b = el("button","hindex"+(installedPacks().includes(g.pack)?" in":""));
+      b.innerHTML = `<span class="car">${isOpen?"▾":"▸"}</span><span class="nm">${hlText(g.pack,q)}</span>
+        <span class="n">${g.items.length}</span><span class="d">${info.desc}</span>`;
+      b.onclick = ()=>{
+        state.helpOpen = (isOpen && !q) ? null : g.pack;
+        if(state.helpPack!=="all") state.helpPack = "all";
+        render();
+      };
+      sc.appendChild(b);
+      if(!isOpen) return;
+
+      /* Eingeklappter Detailbereich direkt unter der Index-Zeile */
+      const head = el("div","pkhead");
+      head.innerHTML = `<div class="m">${g.pack}<br>Authors: ${info.author}<br>Version: ${info.version}</div>`;
+      const rb = el("button","btn sm","Readme");
+      rb.onclick = ()=>{
+        if(info.id && DIS_BY_ID(info.id)?.readme){
+          state.discDetail = info.id; goto("neu-packs");
+          toast(`Readme von ${g.pack} geöffnet`);
+        } else toast(`Readme von ${g.pack} folgt`);
+      };
+      head.appendChild(rb);
+      sc.appendChild(head);
+
+      const secOrder = [], bySec = {};
+      g.items.forEach(i=>{
+        const s = helpSectionOf(i);
+        if(!bySec[s]){ bySec[s]=[]; secOrder.push(s); }
+        bySec[s].push(i);
+      });
+      secOrder.forEach(s=>{
+        sc.appendChild(el("div","hsec",s));
+        const box = el("div","hentries");
+        bySec[s].forEach(i=>{
+          const a = el("button","hentry");
+          const yt = i.m.includes("▶") || i.m.includes("YouTube");
+          a.innerHTML = `<span class="tdot ${i.k}"></span><span class="et">${hlText(i.t,q)}</span>
+            <span class="ei">${yt?"▶":"📄"}</span>`;
+          a.onclick = ()=>{
+            if(i.gw){ window.open("https://greybook.vvvv.org","_blank","noopener");
+                      toast("Öffnet greybook.vvvv.org — die echte Dokumentation"); return; }
+            if(installedPacks().includes(i.pack)){ toast(`Öffnet: ${i.t}`); return; }
+            helpDownload(i, a);
+          };
+          box.appendChild(a);
+        });
+        sc.appendChild(box);
+      });
+    });
+    sc.appendChild(featureCard());
+  };
+
+  redraw();
+
+  pane.appendChild(c);
+  pane.appendChild(sc);
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("help", pane)))));
+  return wrap;
+}
+
+/* ---------- Packs: System-Übersicht + nuget.org-Entdecken ---------- */
+
+/* nuget.org-Katalog für den Entdecken-Tab: Kategorie, Autor, Sortierung, Readme */
+const DIS_CATS = [["all","Alle Pakete"],["graphics","Grafik & Rendering"],
+                  ["io","IO & Hardware"],["ui","UI & Interface"],["vision","Vision & KI"],
+                  ["media","Media & Audio"],["tools","Tools & Editoren"]];
+const DIS_OWNERS = [["vvvv","vvvv"],["HDE","HDE"],["The Node Institute","The Node Institute"]];
+const SORTS = [["updated","Zuletzt aktualisiert"],["added","Neu hinzugefügt"],
+               ["favs","Favoriten"],["downloads","Meiste Downloads"]];
+
+const DISCOVER = [
+  {id:"opencv", n:"VL.OpenCV", ico:"◐", author:"vvvv", cat:"vision", catLabel:"Vision & KI", v:"5.0.0",
+   dl:"410k", dlN:410000, upd:"vor 2 Tagen", updRank:0, addedDays:3400, fav:false, helpCount:9, refCount:142,
+   d:"OpenCV-Binding für Bildverarbeitung und Feature-Erkennung",
+   readme:`<h1>VL.OpenCV</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v5.0.0</span><span class="rbadge">VL.Tagged</span><span class="rbadge">MIT</span>
+<p>OpenCV 4.x als vvvv-gamma-Pack: Bildverarbeitung, Konturen, Tracking und Feature-Erkennung — als Nodes, die in dein Patch gehören.</p>
+<div class="shot"><i></i><i></i><i></i></div>
+<h2>Enthält u. a.</h2>
+<ul><li><code>VideoCapture</code>, <code>imread</code>, <code>imwrite</code></li>
+<li><code>FindContours</code>, <code>Canny</code>, <code>GaussianBlur</code></li>
+<li><code>TemplateMatch</code>, <code>FaceDetect</code>, <code>OpticalFlow</code></li></ul>
+<h2>Erster Schritt</h2>
+<pre>Rechtsklick im Patch → Help → VL.OpenCV → Welcome.vl
+9 Help-Patches, 1 Beispiel-Graph, 1 Referenz-Liste</pre>
+<h2>Hinweis</h2>
+<p>Für Video-Decode wird die native <code>opencv_videoio_ffmpeg.dll</code> mitgeliefert. Kameras brauchen einen Neustart der App nach der Installation.</p>`},
+
+  {id:"mqtt", n:"VL.IO.MQTT", ico:"≡", author:"vvvv", cat:"io", catLabel:"IO & Hardware", v:"1.3.0",
+   dl:"95k", dlN:95000, upd:"vor 6 Tagen", updRank:1, addedDays:2600, fav:true, helpCount:5, refCount:38,
+   d:"MQTT Client & Server für Home-Automation und Messaging",
+   readme:`<h1>VL.IO.MQTT</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v1.3.0</span><span class="rbadge">VL.Tagged</span>
+<p>Publish/Subscribe über MQTT — gegen jeden Broker (Mosquitto, HiveMQ, Azure).</p>
+<h2>Nodes</h2>
+<ul><li><code>MQTTClient</code> — verbinden, subscriben, publishen</li>
+<li><code>MQTTServer</code> — kleiner eingebauter Broker für Tests</li>
+<li><code>MQTTBroker</code> — Status, Retained Messages, Last-Will</li></ul>
+<h2>Beispiel</h2>
+<pre>MQTTClient (localhost:1883)
+├─ OnMessage → Topic, Payload
+└─ Publish   ← topic, message</pre>`},
+
+  {id:"rive", n:"VL.Rive", ico:"◇", author:"vvvv", cat:"graphics", catLabel:"Grafik & Rendering", v:"1.4.1",
+   dl:"812k", dlN:812000, upd:"vor 3 Wochen", updRank:3, addedDays:1500, fav:false, helpCount:6, refCount:54,
+   d:"Rive-Animationsdateien (.riv) in Echtzeit abspielen",
+   readme:`<h1>VL.Rive</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v1.4.1</span>
+<p>Die Echtzeit-Animations-Engine Rive für vvvv gamma — State Machines, Inputs und Artboards direkt am Node.</p>
+<h2>Schnellstart</h2>
+<pre>RivePlayer (file.riv)
+├─ StateMachine „Hover“
+└─ Inputs: isHovered (bool), speed (float)</pre>`},
+
+  {id:"avalonia", n:"VL.Avalonia", ico:"▤", author:"vvvv", cat:"ui", catLabel:"UI & Interface", v:"3.2.0",
+   dl:"1,2M", dlN:1200000, upd:"vor 1 Monat", updRank:4, addedDays:1200, fav:false, helpCount:12, refCount:310,
+   d:"Desktop-UI-Framework als vvvv-Nodes (XAML-artig)",
+   readme:`<h1>VL.Avalonia</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v3.1.0</span><span class="rbadge">VL.Tagged</span>
+<p>Baue klassische Desktop-Fenster mit Buttons, Lists und DataGrids — gerendert in Skia.</p>
+<h2>Enthält</h2>
+<ul><li>Controls: Button, Slider, Grid, TreeView, DataGrid</li>
+<li>Binding &amp; Styles</li>
+<li>Dialoge, Menu, Tray-Icon</li></ul>`},
+
+  {id:"skia", n:"VL.Skia", ico:"✎", author:"vvvv", cat:"graphics", catLabel:"Grafik & Rendering", v:"2.4.0",
+   dl:"980k", dlN:980000, upd:"vor 2 Monaten", updRank:5, addedDays:2000, fav:false, helpCount:14, refCount:420,
+   d:"2D-Zeichnen, Text und Vektoren mit der Skia-Engine",
+   readme:`<h1>VL.Skia</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v2.4.0</span>
+<p>Der 2D-Renderer von vvvv gamma: Shape, Path, Text, Bilder — alles als SVG-artige Nodes.</p>
+<h2>Beispiele</h2>
+<ul><li><code>Simplify</code> — Polygone vereinfachen (siehe HowTo: Simplify a polygon)</li>
+<li><code>Voronoi</code>, <code>Clip</code>, <code>TextLayout</code></li></ul>`},
+
+  {id:"gameaudio", n:"VL.GameAudio", ico:"♪", author:"vvvv", cat:"media", catLabel:"Media & Audio", v:"1.6.0",
+   dl:"210k", dlN:210000, upd:"vor 4 Tagen", updRank:2, addedDays:180, fav:false, helpCount:7, refCount:66,
+   d:"Soundbank-basierte Audio-Playback für Apps und Games",
+   readme:`<h1>VL.GameAudio</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v1.6.0</span><span class="rbadge">neu</span>
+<p>Banks, Cues und 3D-Positionierung — das Audio-System aus VL.GameAudio.</p>
+<h2>Nodes</h2>
+<ul><li><code>AudioBank</code>, <code>PlayCue</code>, <code>SetListener</code></li></ul>`},
+
+  {id:"stride", n:"VL.Avalonia.Stride", ico:"▣", author:"vvvv", cat:"graphics", catLabel:"Grafik & Rendering", v:"2.0.0",
+   dl:"340k", dlN:340000, upd:"vor 5 Wochen", updRank:6, addedDays:700, fav:true, helpCount:4, refCount:29,
+   d:"Stride-3D-Renderer für Avalonia-Interfaces",
+   readme:`<h1>VL.Avalonia.Stride</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v2.0.0</span>
+<p>Rendert 3D-Szenen in eine Avalonia-UI — z. B. für Vorschauen und Editor-Fenster.</p>`},
+
+  {id:"elementa", n:"Elementa", ico:"E", author:"The Node Institute", cat:"ui", catLabel:"UI & Interface", v:"0.4.2",
+   dl:"12k", dlN:12000, upd:"vor 5 Tagen", updRank:1, addedDays:12, fav:false, helpCount:3, refCount:41,
+   d:"Declarative UI-Bausteine für vvvv gamma",
+   readme:`<h1>Elementa</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v0.4.2</span><span class="rbadge">neu</span>
+<p>Layout-Container und Controls, die sich wie moderne UI-Frameworks anfühlen.</p>
+<h2>Enthält</h2>
+<ul><li>Row / Column / Grid</li><li>Text, Button, Toggle, ScrollArea</li></ul>`},
+
+  {id:"debuginfo", n:"VL.DebugInfo.HDE", ico:"⚙", author:"HDE", cat:"tools", catLabel:"Tools & Editoren", v:"0.9.4",
+   dl:"28k", dlN:28000, upd:"vor 1 Woche", updRank:2, addedDays:900, fav:false, helpCount:2, refCount:12,
+   d:"Debug-Einblendungen für Nodes und Patches",
+   readme:`<h1>VL.DebugInfo.HDE</h1>
+<span class="rbadge">nuget</span><span class="rbadge">v0.9.4</span>
+<p>Zeigt Werte, Timings und Pin-Status direkt am Node — ohne externes Tool.</p>`},
+];
+
+const DIS_BY_ID = id => allPacks().find(p=>p.id===id);
+
+/* Installation: kurzer Fortschritt, danach sofort Help-Patches sichtbar */
+function installPack(p){
+  if(installedPacks().includes(p.n)) return;
+  state.installing = p.id;
+  render();
+  clearTimeout(installTimer);
+  installTimer = setTimeout(()=>{
+    state.installing = null;
+    state.installed = installedPacks().concat([p.n]);
+    state.newlyInstalled = p.id;
+    state.discDetail = p.id;          // Detailansicht zeigt sofort Help + Welcome
+    if(!flowAdvance("disc-install")) render();
+    toast(`${p.n} installiert — ${p.helpCount} Help-Patches sind jetzt da`);
+  }, 900);
+}
+
+/* Willkommen-Patch öffnen → Help-Bereich, gefiltert auf installierte Packs */
+function openWelcome(p){
+  state.helpTypes = []; state.helpPack = "pack:"+p.n;
+  flowAdvance("disc-welcome");
+  goto("neu-help");
+  toast(`Willkommen-Patch von ${p.n} geöffnet`);
+}
+
+function neuPacks(){
+  const wrap = el("div");
+  const c = el("div");
+  if(state.discDetail){
+    c.appendChild(discoverDetail());
+  } else {
+    if(state.newlyInstalled){
+      const p = DIS_BY_ID(state.newlyInstalled);
+      if(p && isInstP(p)) c.appendChild(installedNotice(p, false));
+    }
+    c.appendChild(packBrowser("browser"));
+    c.appendChild(packPathBlock());
+  }
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("packs", c)))));
+  return wrap;
+}
+
+/* NuGet-Pfad: dezent unter dem Browser, Startargument aufklappbar */
+function packPathBlock(){
+  const path = el("div","");
+  path.style.cssText = "margin-top:16px;padding-top:9px;border-top:1px solid var(--border);"+
+                       "font-size:10.5px;color:var(--faint);line-height:1.9";
+  path.innerHTML = `NuGet-Ordner <code style="font-family:Consolas,monospace;color:var(--muted)">${NUGET_PATH}</code>
+    <span style="display:inline-flex;gap:5px;margin-left:6px;vertical-align:-3px">
+      <button class="btn sm" id="openNuget">Ordner öffnen</button>
+      <button class="btn sm" id="copyNuget">Kopieren</button>
+      <button class="btn sm ghost" id="nugetArg">Startup-Argument</button></span>
+    <div id="nugetCmd" style="display:none">
+      <div class="cmd" style="margin-top:7px">vvvv.exe --nuget-path "D:\\vvvv\\nugets"</div>
+      <div style="margin-top:5px">Ohne Argument gilt der Standard oben. Weitere Startargumente:
+        <code style="color:#ce9178">--package-repositories</code> (eigene Paketquellen),
+        <code style="color:#ce9178">--editable-packages</code> (Packs zum Bearbeiten freigeben).
+        Quelle: Greybook → Commandline Arguments.</div></div>`;
+  path.querySelector("#openNuget").onclick = ()=>toast("Öffnet " + NUGET_PATH + " im Explorer");
+  path.querySelector("#copyNuget").onclick = ()=>toast("Pfad kopiert: " + NUGET_PATH);
+  path.querySelector("#nugetArg").onclick = ()=>{
+    const d = path.querySelector("#nugetCmd");
+    d.style.display = d.style.display==="none" ? "block" : "none";
+  };
+  return path;
+}
+
+/* ---------- Pack-Browser: EIN Browser für Tab „Packs“ und das References-Overlay ----------
+   Filter oben in einer Zeile (kein Sidebar), Sektionen aufklappbar wie VS Code Extensions. */
+const PACK_EXTRA = [
+  {id:"core", n:"VL.CoreLib", ico:"▣", author:"vvvv", cat:"tools", catLabel:"Tools & Editoren", v:"5.0.0",
+   dl:"—", dlN:0, upd:"Built-In", updRank:9, addedDays:0, fav:true, helpCount:12, refCount:0,
+   d:"Grundbibliothek von vvvv gamma — immer dabei", readme:null},
+  {id:"spout", n:"VL.SpoutMonitor.HDE", ico:"▦", author:"HDE", cat:"io", catLabel:"IO & Hardware", v:"2.0.1",
+   dl:"6k", dlN:6000, upd:"vor 3 Wochen", updRank:7, addedDays:200, fav:false, helpCount:2, refCount:5,
+   d:"Spout-Eingänge aus anderen Apps empfangen", readme:null},
+  {id:"spline", n:"VL.Animation.Spline", ico:"∿", author:"vvvv", cat:"graphics", catLabel:"Grafik & Rendering", v:"1.4.2",
+   dl:"44k", dlN:44000, upd:"vor 2 Monaten", updRank:8, addedDays:900, fav:false, helpCount:2, refCount:12,
+   d:"Spline-Kurven für Animationen", readme:null},
+];
+/* Packs mit ausstehendem Update → Version davor (Anzeige „alt → neu“).
+   Echte Versionen: installiert1.2.6 / 0.7.6 → Katalog 1.3.0 / 0.7.7 */
+const UPDATES = {"VL.IO.MQTT":"1.2.6", "VL.Avalonia":"0.7.6"};
+
+/* Kuratierte Einträge (DISCOVER/PACK_EXTRA) mit den echten Katalogwerten angereichert,
+   plus alle übrigen nuget-Packs — EIN gemeinsamer Bestand für Browser und Help. */
+const CATALOG = (()=>{
+  const byName = {};
+  PD.packs.forEach(r=>{ byName[r.i] = r; });
+  const cur = DISCOVER.concat(PACK_EXTRA).map(p=>{
+    const r = byName[p.n];
+    if(!r) return p;
+    const vers = (r.vs&&r.vs.length) ? r.vs : [r.v];
+    const o = Object.assign({}, p, {
+      v:r.v, vers, dl:fmtDl(r.dl), dlN:r.dl||0,
+      upd:relTime(r.lp) || p.upd, updRank:p.updRank,
+      helpCount:(r.h||[]).length,
+      refCount:(r.h||[]).filter(e=>e[0]==="ref").length,
+      shipped:SHIPPED.includes(p.n),
+      d:r.d||p.d, tags:(r.t||[]).slice(0,4)
+    });
+    /* Readme-Badge auf die echte Version bringen */
+    if(o.readme) o.readme = o.readme.replace(/(<span class="rbadge">v)[^<]+(<\/span>)/, `$1${r.v}$2`);
+    return o;
+  });
+  const known = new Set(cur.map(p=>p.n));
+  const rest = PD.packs.filter(r=>!known.has(r.i)).map(r=>{
+    const p = realPackObj(r);
+    p.readme = realReadme(p);
+    return p;
+  });
+  return cur.concat(rest);
+})();
+const allPacks = ()=> CATALOG;
+const isInstP = p => installedPacks().includes(p.n);
+const updPending = p => !!UPDATES[p.n] && isInstP(p) && !state.updatesDone;
+const verText = p => updPending(p) ? `${UPDATES[p.n]} → ${p.v}` : p.v;
+const PACK_CAT_OPTS = [["all","Alle Kategorien"]].concat(DIS_CATS.slice(1),
+  DIS_OWNERS.map(([k,l])=>["owner:"+k, "Herausgeber: "+l]));
+const packSorter = sort => (a,b)=> sort==="downloads" ? b.dlN-a.dlN
+  : sort==="added" ? a.addedDays-b.addedDays
+  : sort==="favs" ? ((b.fav?1:0)-(a.fav?1:0)) || (b.dlN-a.dlN)
+  : a.updRank-b.updRank;
+function packMatch(p, ui){
+  if(ui.chip==="fav" && !p.fav) return false;
+  if(ui.cat.startsWith("owner:")){ if(p.author!==ui.cat.slice(6)) return false; }
+  else if(ui.cat!=="all" && p.cat!==ui.cat) return false;
+  const q = ui.search.trim().toLowerCase();
+  return !q || (p.n+" "+p.author+" "+p.d).toLowerCase().includes(q);
+}
+
+/* „Add“ im Referenz-Overlay: erst herunterladen (Ladebalken in der Zeile), dann referenzieren.
+   Auf der Festplatte → sofort, ohne Balken. */
+function refDownload(p, row, act, done){
+  if(row._dl) return;
+  let pc = 0, timer = null;
+  const stop = ()=>{ clearInterval(timer); timer=null; row._dl=false; row.classList.remove("dl");
+                     row.querySelector(".rowbar")?.remove(); };
+  const start = ()=>{
+    row._dl = true; pc = 0; row.classList.add("dl");
+    let host = row.querySelector(".rowbar");
+    if(!host){ row.insertAdjacentHTML("beforeend",'<span class="rowbar"><i></i></span>');
+               host = row.querySelector(".rowbar"); }
+    const bar = host.querySelector("i");
+    bar.style.cssText = ""; bar.style.width = "0%";
+    act.innerHTML = `<span class="dlbar" style="min-width:0"><span class="pct">0%</span>
+      <button class="x" title="Abbrechen">✕</button></span>`;
+    const pct = act.querySelector(".pct");
+    act.querySelector(".x").onclick = e=>{
+      e.stopPropagation(); stop(); render(); toast("Download abgebrochen");
+    };
+    timer = setInterval(()=>{
+      if(!navigator.onLine){ stop(); showError(); return; }
+      pc = Math.min(100, pc + 8 + Math.random()*10);
+      bar.style.width = pc+"%"; pct.textContent = Math.round(pc)+"%";
+      if(pc>=100){ stop(); done(); }
+    }, 100);
+  };
+  const showError = ()=>{
+    row.classList.add("dl"); row._dl = false;
+    row.insertAdjacentHTML("beforeend",'<span class="rowbar"><i style="width:100%;background:var(--red)"></i></span>');
+    act.innerHTML = `<span class="dlbar err" style="min-width:0"><span class="pct">↻</span>
+      <button class="x">Erneut</button></span>`;
+    act.querySelector(".x").onclick = e=>{
+      e.stopPropagation();
+      row.querySelector(".rowbar")?.remove(); row.classList.remove("dl");
+      start();
+    };
+  };
+  start();
+}
+
+function packBrowser(mode, cb={}){
+  const ref = mode==="ref";
+  const key = ref ? "refUI" : "packUI";
+  if(!state[key]) state[key] = {search:"", chip:"all", cat:"all", sort: ref?"downloads":"updated",
+                                collapsed:{av:true}, view:"list"};
+  const ui = state[key];
+
+  /* References-Modus: Packs des Dokuments + MQTT, sobald hinzugefügt */
+  const d = DOCS[state.doc];
+  const refNames = ref ? (d ? d.packs.map(p=>p.n) : []).concat(state.refExtra||[])
+    .concat(state.packAdded && !state.removed ? ["VL.IO.MQTT"] : []) : [];
+  const inDoc = p => refNames.includes(p.n);
+
+  const wrap = el("div");
+  const bar = el("div","pbar");
+  bar.innerHTML = `<span style="flex:1 1 180px;display:flex;align-items:center;gap:4px"><input class="fsearch" placeholder="FILTER BY …" value="${ui.search}"><button class="chip" id="pClr" title="Suche leeren" style="${ui.search?"":"display:none"}">✕</button></span>
+    <select class="psel" id="pSort">${SORTS.map(([k,l])=>
+      `<option value="${k}"${ui.sort===k?" selected":""}>${l}</option>`).join("")}</select>
+    <span class="vtog" id="pView"><button data-v="list" class="${ui.view==="list"?"on":""}" title="Liste">☰</button><button data-v="card" class="${ui.view==="card"?"on":""}" title="Karten">▦</button></span>
+    <label class="pstable"><input type="checkbox" checked style="margin:0"> Only Stable</label>`;
+  wrap.appendChild(bar);
+  const body = el("div","pbody");
+  const side = el("div","pside");
+  const list = el("div","plist");
+  body.appendChild(side);
+  body.appendChild(list);
+  wrap.appendChild(body);
+
+  /* Sektionen: Länge steuern — Updates/Installiert offen, „Verfügbar“ als Akkordeon */
+  const base = allPacks();
+  const sections = ref
+    ? [["all","",()=>true]]
+    : [["upd","Updates",p=>updPending(p)],
+       ["inst","Installiert",p=>isInstP(p) && !updPending(p)],
+       ["av","Verfügbar · nuget.org",p=>!isInstP(p)]];
+
+  const packRow = p=>{
+    const pend = updPending(p);
+    const inst = isInstP(p);
+    const isIn = ref ? inDoc(p) : inst;
+    const busy = state.installing===p.id;
+    const row = el("div","prow shot"+(isIn && !pend ? " in" : ""));
+    const dotCls = pend ? "upd" : busy ? "busy" : isIn ? "ok" : "";
+    const vers = (p.vers && p.vers.length) ? p.vers : [p.v];
+    const stateTxt = ref
+      ? (isIn ? "✓ im Dokument" : "")
+      : pend ? "⬆ Update verfügbar"
+      : busy ? "wird installiert …"
+      : inst ? "✓ installiert" : "nicht installiert";
+    row.innerHTML = `<span class="sq">${p.ico||"▣"}</span>
+      <div class="info">
+        <div class="nm">${p.n}${p.shipped?' <span class="badge bi">Built-In</span>':""}</div>
+        <div class="au">${p.author||"vvvv"}${p.catLabel?" · "+p.catLabel:""}</div>
+        <div class="dsc">${p.d||""}</div>
+        ${(p.tags&&p.tags.length)?`<div class="tags">${p.tags.map(t=>`<span class="tg">${t}</span>`).join("")}</div>`:""}
+      </div>
+      <div class="side">
+        <div class="l1">
+          <span class="sdot ${dotCls}"></span><span class="stt">${stateTxt}</span>
+          <button class="helpico" title="Help-Patches anzeigen">📄</button>
+          <button class="more" title="Mehr Aktionen">⋯</button>
+          <button class="star${p.fav?" on":""}" title="Favorit">${p.fav?"★":"☆"}</button>
+        </div>
+        <div class="l2">
+          <span class="ver">${ref
+            ? `<select>${vers.map(v=>`<option${v===p.v?" selected":""}>${v}</option>`).join("")}</select>`
+            : `<span style="color:var(--muted);font-size:10.5px;white-space:nowrap">${verText(p)}</span>`}</span>
+          <span class="dl">${p.dl}</span>
+          <span class="act"></span>
+        </div>
+      </div>`;
+    row.querySelector(".star").onclick = e=>{ e.stopPropagation(); p.fav=!p.fav; drawList(); };
+    row.querySelector(".more").onclick = e=>{
+      e.stopPropagation();
+      toast(`${p.n}: Details · Versionen · Abhängigkeiten · NuGet-Seite öffnen`);
+    };
+    row.querySelector(".helpico").onclick = e=>{
+      e.stopPropagation();
+      state.helpTypes=[]; state.helpPack="pack:"+p.n; state.helpOpen=p.n; state.helpSearch="";
+      goto("neu-help");
+      toast(`Help-Patches von ${p.n} — ${p.helpCount||0} Einträge`);
+    };
+    const act = row.querySelector(".act");
+    const sel = row.querySelector("select");
+    if(sel) sel.onchange = e=>{ e.stopPropagation(); toast(`Version ${e.target.value} gewählt — greift beim nächsten Refresh`); };
+
+    if(ref){
+      if(inDoc(p)){
+        if(p.n==="VL.IO.MQTT"){
+          const rb = el("button","btn sm","Remove");
+          rb.id = "ovRemove";
+          rb.onclick = e=>{ e.stopPropagation(); cb.onRemove && cb.onRemove(); };
+          act.appendChild(rb);
+        }
+      } else {
+        const ab = el("button","btn sm","Add to Document");
+        const finish = ()=>{
+          state.refExtra = (state.refExtra||[]).concat([p.n]);
+          if(!installedPacks().includes(p.n)) state.installed = installedPacks().concat([p.n]);
+          if(!(p.id==="opencv" && flowAdvance("pack-download"))) render();
+          toast(`${p.n} → jetzt referenziert`);
+        };
+        if(p.n==="VL.IO.MQTT"){
+          ab.id = "addMqtt";
+          ab.dataset.flow = "pack-add";
+          if(isHot("pack-add")) ab.classList.add("hot");
+          ab.onclick = e=>{ e.stopPropagation(); cb.onAdd && cb.onAdd(); };
+        } else {
+          if(p.id==="opencv" && isHot("pack-download")) hot(ab,"pack-download");
+          ab.onclick = e=>{ e.stopPropagation();
+            installedPacks().includes(p.n) ? finish() : refDownload(p, row, act, finish); };
+        }
+        act.appendChild(ab);
+      }
+    } else {
+      if(pend){
+        const ub = el("button","btn sm","⬆ Update");
+        ub.onclick = e=>{ e.stopPropagation(); installPack(p); };
+        act.appendChild(ub);
+      }
+      else if(inst) act.innerHTML = `<span style="color:var(--green);font-size:11px">✓ installiert</span>`;
+      else if(busy) act.innerHTML = `<span class="spin"></span>`;
+      else {
+        const ib = el("button","btn sm","Installieren");
+        ib.onclick = e=>{ e.stopPropagation(); installPack(p); };
+        act.appendChild(ib);
+      }
+      /* Zeile öffnet das Readme */
+      row.style.cursor = "pointer";
+      row.onclick = e=>{
+        if(e.target.closest(".act,.star,.more,.helpico,.l2 select")) return;
+        if(!p.readme){ toast(`${p.n}: Readme folgt`); return; }
+        state.discDetail = p.id;
+        if(!(p.id==="opencv" && flowAdvance("disc-card"))) render();
+      };
+      if(p.id==="opencv" && isHot("disc-card")) hot(row,"disc-card");
+    }
+    return row;
+  };
+
+  const drawList = ()=>{
+    list.className = "plist" + (ui.view==="card" ? " pcards" : "");
+    list.innerHTML = "";
+    const rows = base.filter(p=>packMatch(p, ui));
+    if(!rows.length){ list.appendChild(el("div","emptybox","Keine Treffer für diesen Filter.")); return; }
+    sections.forEach(([sk, title, test])=>{
+      const items = rows.filter(test).sort(packSorter(ui.sort));
+      if(!items.length) return;
+      /* References: flache Liste aller Packs — kein Abschnittskopf, Aktion je Zeile */
+      if(ref){ items.forEach(p=>list.appendChild(packRow(p))); return; }
+      const closed = !!ui.collapsed[sk];
+      const h = el("div","sect");
+      h.innerHTML = `<span class="car">${closed?"▸":"▾"}</span>${title} <span class="cnt">(${items.length})</span>`;
+      h.onclick = ()=>{ ui.collapsed[sk] = !closed; drawList(); };
+      if(sk==="upd" && !state.updatesDone){
+        const ub = el("button","btn sm","Alle Updates installieren");
+        ub.style.marginLeft = "auto";
+        if(isHot("update-all")) hot(ub,"update-all");
+        ub.onclick = e=>{
+          e.stopPropagation();
+          state.updatesDone = true;
+          if(!flowAdvance("update-all")) render();
+          toast("2 Packs aktualisiert: VL.IO.MQTT → 1.3.0, VL.Avalonia → 0.7.7");
+        };
+        h.appendChild(ub);
+      }
+      list.appendChild(h);
+      if(!closed) items.forEach(p=>list.appendChild(packRow(p)));
+    });
+  };
+
+  bar.querySelector(".fsearch").oninput = e=>{
+    ui.search = e.target.value;
+    bar.querySelector("#pClr").style.display = ui.search ? "" : "none";
+    drawList();
+  };
+  bar.querySelector("#pClr").onclick = ()=>{
+    ui.search = ""; bar.querySelector(".fsearch").value = "";
+    bar.querySelector("#pClr").style.display = "none"; drawList();
+  };
+  bar.querySelector("#pSort").onchange = e=>{ ui.sort = e.target.value; drawList(); };
+  bar.querySelectorAll("#pView button").forEach(b=>{
+    b.onclick = ()=>{
+      ui.view = b.dataset.v;
+      bar.querySelectorAll("#pView button").forEach(x=>x.classList.toggle("on", x===b));
+      drawList();
+    };
+  });
+  /* Sidebar wie in vvvv: All/Favorites, dann Kategorien oder Herausgeber */
+  const drawAll = ()=>{ drawSide(); drawList(); };
+  const drawSide = ()=>{
+    const all = allPacks();
+    side.innerHTML = "";
+    const item = (on, label, n, fn)=>{
+      const b = el("button", "pitem"+(on?" on":""));
+      b.innerHTML = `<span class="nm">${label}</span><span class="n">${n}</span>`;
+      b.onclick = fn;
+      side.appendChild(b);
+    };
+    item(ui.cat==="all" && ui.chip==="all", "All", all.length, ()=>{ ui.cat="all"; ui.chip="all"; drawAll(); });
+    item(ui.chip==="fav", "Favorites", all.filter(p=>p.fav).length, ()=>{ ui.chip="fav"; ui.cat="all"; drawAll(); });
+    const seg = el("div","pseg");
+    seg.innerHTML = `<button class="${ui.side!=="owner"?"on":""}">By Category</button><button class="${ui.side==="owner"?"on":""}">By Owner</button>`;
+    seg.children[0].onclick = ()=>{ ui.side="cat"; drawSide(); };
+    seg.children[1].onclick = ()=>{ ui.side="owner"; drawSide(); };
+    side.appendChild(seg);
+    if(ui.side==="owner"){
+      DIS_OWNERS.forEach(([k,l])=>item(ui.cat==="owner:"+k, l, all.filter(p=>p.author===k).length,
+        ()=>{ ui.cat="owner:"+k; ui.chip="all"; drawAll(); }));
+    } else {
+      DIS_CATS.slice(1).forEach(([k,l])=>item(ui.cat===k, l, all.filter(p=>p.cat===k).length,
+        ()=>{ ui.cat=k; ui.chip="all"; drawAll(); }));
+    }
+  };
+  drawSide();
+  drawList();
+  return wrap;
+}
+
+/* Install-Banner — „sofort Help-Patches sehen“ */
+function installedNotice(p, hotIt){
+  const nb = el("div","notice good");
+  nb.innerHTML = `<span>✓</span><span><b>${p.n} installiert</b> —
+    ${p.helpCount} Help-Patches, ${p.refCount} Referenzen und der <b>Willkommen-Patch</b> sind jetzt sichtbar</span>`;
+  const wb = el("button","btn sm","Willkommen-Patch öffnen");
+  if(hotIt && isHot("disc-welcome")) hot(wb,"disc-welcome");
+  wb.onclick = ()=>openWelcome(p);
+  const hb = el("button","btn sm ghost","Help-Inhalte");
+  hb.onclick = ()=>{ state.helpTypes=[]; state.helpPack="pack:"+p.n; goto("neu-help"); };
+  nb.appendChild(wb); nb.appendChild(hb);
+  return nb;
+}
+
+/* Detail: Kopf + Install-Zustand + gerendertes Readme */
+function discoverDetail(){
+  const p = DIS_BY_ID(state.discDetail);
+  const c = el("div");
+  const back = el("button","backlink","‹ Zurück zu allen Paketen");
+  back.onclick = ()=>{ state.discDetail=null; render(); };
+  c.appendChild(back);
+
+  const isInst = installedPacks().includes(p.n);
+  const head = el("div","pdhead");
+  head.innerHTML = `<span class="picon">${p.ico}</span>
+    <div><div class="nm">${p.n}</div><div class="au">von ${p.author} · ${p.catLabel}</div>
+      <div class="meta"><span>${p.v}</span><span>${p.dl} Downloads</span>
+        <span>aktualisiert ${p.upd}</span><span>Lizenz MIT</span>
+        <span>★ ${p.fav?"Favorit":"favorisieren"}</span></div></div>`;
+  const act = el("div","act");
+  if(!isInst){
+    if(state.installing===p.id){
+      act.innerHTML = `<span class="spin"></span> <span style="color:var(--accent);font-size:11px">installiere …</span>`;
+    } else {
+      const b = el("button","btn primary sm","Installieren");
+      if(isHot("disc-install")) hot(b,"disc-install");
+      b.onclick = ()=>installPack(p);
+      act.appendChild(b);
+    }
+  }
+  head.appendChild(act);
+  c.appendChild(head);
+
+  if(isInst) c.appendChild(installedNotice(p, true));
+
+  const rm = el("div","readme", p.readme);
+  c.appendChild(rm);
+  c.appendChild(el("div","",`<div style="font-size:10.5px;color:var(--faint);margin-top:8px">
+    Readme wird von nuget.org geladen und gerendert — gleiche Quelle, gleiche Darstellung wie auf der Webseite.</div>`));
+  return c;
+}
+
+/* ---------- Extensions ---------- */
+function neuExt(){
+  const wrap = el("div");
+  const c = el("div");
+  c.appendChild(el("div","h2","Systemweite Extensions"));
+  c.appendChild(el("div","", `<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+    VL-getaggte NuGet-Packages · gelten für alle Dokumente und Applikationen</div>`));
+  c.appendChild(el("div","", `<input style="width:100%;background:#1a1a1a;border:1px solid #3f3f46;color:#d4d4d4;padding:5px 8px;font-size:11.5px;margin-bottom:12px" placeholder="FILTER BY">`));
+
+  /* installiert */
+  const r0 = el("div","extrow done");
+  r0.innerHTML = `<span class="ico">▣</span>
+    <div class="info"><div class="t">VL.Bookmarks.HDE</div><div class="d">1.2.0 · 41k Downloads · Windows → Bookmarks</div></div>
+    <div class="state" style="color:var(--green)">✓ <button class="btn sm">Remove</button></div>`;
+  c.appendChild(r0);
+
+  /* Flow-Zeile: VL.SpoutMonitor.HDE */
+  const r1 = el("div","extrow"+(state.ext.phase==="done"?" done":""));
+  r1.innerHTML = `<span class="ico">▣</span>
+    <div class="info"><div class="t">VL.SpoutMonitor.HDE</div>
+      <div class="d">2.0.1 · 6k Downloads · zeigt Spout-Eingänge</div></div>`;
+  const st1 = el("div","state");
+
+  if(state.ext.phase==="idle"){
+    const addBtn = el("button","btn sm","Add");
+    if(isHot("ext-add")) hot(addBtn,"ext-add");
+    addBtn.onclick = ()=>{
+      state.ext = {phase:"running", pct:0};
+      if(!flowAdvance("ext-add")) render();
+      startExtProgress();
+    };
+    st1.appendChild(addBtn);
+  } else if(state.ext.phase==="running"){
+    st1.innerHTML = `<span class="spin"></span>`;
+    r1.querySelector(".info").insertAdjacentHTML("beforeend",
+      `<div class="prog"><i id="extBar" style="width:${state.ext.pct}%"></i></div>
+       <div class="d" id="extPct" style="color:var(--accent)">Lädt von nuget.org … ${Math.round(state.ext.pct)} %</div>`);
+  } else {
+    st1.innerHTML = `<div style="color:var(--green)">✓ installiert</div>`;
+    const anc = el("button","anchor","Windows → Spout Monitor öffnen");
+    anc.style.marginTop="4px";
+    if(isHot("ext-anchor")) hot(anc,"ext-anchor");
+    anc.onclick = ()=>{ if(!flowAdvance("ext-anchor")) goto("neu-spout"); };
+    st1.appendChild(anc);
+  }
+  r1.appendChild(st1); c.appendChild(r1);
+
+  /* Fehlerpfad */
+  const r2 = el("div","extrow");
+  r2.innerHTML = `<span class="ico">▣</span>
+    <div class="info"><div class="t">VL.Pipette.HDE</div><div class="d">2.1.0 · 18k Downloads</div></div>`;
+  const st2 = el("div","state");
+  const add2 = el("button","btn sm","Add");
+  st2.appendChild(add2); r2.appendChild(st2); c.appendChild(r2);
+  add2.onclick = ()=>{
+    add2.disabled=true; st2.innerHTML = `<span class="spin"></span>`;
+    setTimeout(()=>{
+      r2.classList.add("fail");
+      st2.innerHTML = `<div style="color:var(--red)">✗ fehlgeschlagen</div>`;
+      const log = el("button","anchor","Log anzeigen");
+      log.onclick = ()=>toast("NuGet-Fehler 409: Konflikt mit VL.CoreLib 2025.7.4");
+      st2.appendChild(log);
+    }, 1800);
+  };
+
+  c.appendChild(el("div","", `<div style="font-size:10.5px;color:var(--faint);margin-top:10px;line-height:1.7">
+    Flow ①: Add → Fortschritt → Zustand mit Anker → Ergebnis (P3).
+    Der dritte Eintrag zeigt den Fehlerpfad — beide enden mit klarem Zustand statt endlosem Warten.</div>`));
+
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("ext", c)))));
+  return wrap;
+}
+
+function startExtProgress(){
+  clearInterval(extTimer);
+  extTimer = setInterval(()=>{
+    state.ext.pct += 8 + Math.random()*14;
+    if(state.ext.pct>=100){
+      state.ext.pct=100; clearInterval(extTimer);
+      const bar=document.getElementById("extBar"); if(bar) bar.style.width="100%";
+      const pct=document.getElementById("extPct"); if(pct) pct.textContent="Lädt von nuget.org … 100 %";
+      setTimeout(()=>{
+        state.ext.phase="done";
+        if(!flowAdvance("ext-progress")) render();
+        toast("Installiert — der Anker führt direkt zum Ergebnis");
+      }, 350);
+      return;
+    }
+    const bar=document.getElementById("extBar"); if(bar) bar.style.width=state.ext.pct+"%";
+    const pct=document.getElementById("extPct"); if(pct) pct.textContent=`Lädt von nuget.org … ${Math.round(state.ext.pct)} %`;
+  }, 260);
+}
+
+/* =====================================================================
+   NEU: Browser → Shortcuts  (war ein Sub-Tab in Settings)
+   ===================================================================== */
+const SHORTCUTS = [
+  ["Patch & Nodes", [
+    ["Node Browser öffnen", ["Doppelklick","Strg","Leertaste"], "oder Rechtsklick im leeren Patch"],
+    ["Node suchen & platzieren", ["Strg","Leertaste"], null],
+    ["Hilfe zum selektierten Node", ["F1"], "springt in den Help-Bereich"],
+    ["Patch durchsuchen", ["Strg","F"], null],
+    ["Alles auswählen", ["Strg","A"], null],
+    ["Kopieren / Einfügen", ["Strg","C","Strg","V"], null],
+  ]],
+  ["Browser & Hilfe", [
+    ["Tab Welcome / Help / Packs", ["Strg","1","Strg","2","Strg","3"], "im Browser-Fenster"],
+    ["Tab Extensions / Shortcuts", ["Strg","4","Strg","5"], null],
+    ["References (unterer Tab)", ["Strg","Umschalt","R"], null],
+    ["Follow-Mode", ["Strg","Umschalt","F"], "zeigt, in welchen Help-Patches das Node vorkommt"],
+    ["Node-Info", ["Strg","I"], null],
+  ]],
+  ["Allgemein", [
+    ["Neues Dokument", ["Strg","N"], null],
+    ["Settings (Theme)", ["Strg",","], null],
+    ["Command-Palette", ["Strg","Umschalt","P"], null],
+    ["Zoom", ["Strg","Mausrad"], null],
+  ]],
+];
+
+function neuShortcuts(){
+  const wrap = el("div");
+  const c = el("div","tabpane on");
+  c.appendChild(el("div","h2","Tastaturkürzel"));
+  c.appendChild(el("div","", `<div style="font-size:11.5px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+    War ein Sub-Tab in Settings — gehörte schon immer zum Lernen und Suchen und landet deshalb
+    im <b style="color:var(--text)">Help</b> unter „Shortcuts“.</div>`));
+
+  const s = el("input","fsearch");
+  s.placeholder = "Kürzel oder Aktion suchen …";
+  s.style.cssText = "width:100%;margin-bottom:12px";
+  c.appendChild(s);
+
+  const body = el("div");
+  SHORTCUTS.forEach(([g,items])=>{
+    const grp = el("div","scgrp");
+    grp.appendChild(el("div","g",g));
+    items.forEach(([t,keys,hint])=>{
+      const r = el("div","scrow");
+      r.dataset.search = (t+" "+keys.join(" ")).toLowerCase();
+      r.innerHTML = `<div class="t">${t}${hint?`<small>${hint}</small>`:""}</div>
+        <div class="k">${keys.map(k=>`<span class="kbd">${k}</span>`).join("")}</div>`;
+      grp.appendChild(r);
+    });
+    body.appendChild(grp);
+  });
+  c.appendChild(body);
+  s.oninput = ()=>{
+    const q = s.value.toLowerCase();
+    body.querySelectorAll(".scrow").forEach(r=>r.style.display = r.dataset.search.includes(q)?"":"none");
+  };
+
+  c.appendChild(el("div","", `<div style="font-size:10.5px;color:var(--faint);margin-top:14px;line-height:1.7">
+    Werte beispielhaft — im Ist stehen sie unter <b style="color:var(--muted)">Settings → Shortcuts</b>
+    und sind dort editierbar.<br>
+    UX-Vorschlag: Kürzel direkt am Eintrag neu belegen (Klick → „neue Taste drücken“)
+    statt in einem separaten Bearbeiten-Dialog.</div>`));
+
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("browser", browserShell("shortcuts", c)))));
+  return wrap;
+}
+
+/* =====================================================================
+   NEU: Settings-Fenster (gedockt) — nur Theme-Switcher, keine Sub-Tabs
+   ===================================================================== */
+function neuSettings(){
+  const wrap = el("div");
+  const c = el("div","tabpane on");
+  c.appendChild(el("div","h2","Theme"));
+  c.appendChild(el("div","", `<div style="font-size:11.5px;color:var(--muted);line-height:1.6">
+    Ein einziges Thema für die gesamte Oberfläche — sofort wirksam, kein Unter-Menü.
+    Die alten Sub-Tabs sind woanders: <b style="color:var(--text)">Extensions</b> und
+    <b style="color:var(--text)">Shortcuts</b> sind eigene Tabs im Browser,
+    <b style="color:var(--text)">Themes</b> ist genau das hier.</div>`));
+
+  const th = el("div","themes");
+  [["dark","Dark","Standard — vvvv-Dunkelgrau","#1e1e1e","#252526","#f0a232"],
+   ["light","Light","Für helle Umgebungen","#e3e3e1","#ffffff","#c47b16"],
+   ["hc","High Contrast","Maximale Lesbarkeit","#000000","#141414","#ffd400"]]
+   .forEach(([k,nm,d,bg,pan,acc])=>{
+    const b = el("button","theme"+(state.theme===k?" on":""));
+    b.innerHTML = `<div class="sw"><i style="background:${bg}"></i><i style="background:${pan}"></i>
+        <i style="background:${acc}"></i></div>
+      <div class="nm">${nm}</div><div class="d">${d}</div>`;
+    b.onclick = ()=>{
+      state.theme = k;
+      if(k==="dark") delete document.body.dataset.theme;
+      else document.body.dataset.theme = k;
+      render();
+      toast(`Theme „${nm}“ — wirkt sofort auf den gesamten Prototyp`);
+    };
+    th.appendChild(b);
+  });
+  c.appendChild(th);
+
+  c.appendChild(el("div","", `<div style="font-size:10.5px;color:var(--faint);margin-top:14px;line-height:1.7">
+    Kein Sub-Tab, keine Kategorien: das Fenster enthält genau eine Entscheidung.<br>
+    Fenster schließen (✕) kehrt zum zuletzt offenen Browser-Tab zurück.</div>`));
+
+  const win = winShell("Settings", c, "gedockt · ohne Sub-Tabs", ()=>{
+    state.settingsOpen = false;
+    goto(state.lastBrowser || "neu-home");
+  });
+  win.classList.add("dockwin");
+  wrap.appendChild(winShell("vvvv gamma", editorShell(dockColumn("settings", win))));
+  return wrap;
+}
+
+/* =====================================================================
+   References — eigenes Fenster (pro Dokument, folgt dem Editor)
+   ===================================================================== */
+function versionSelect(name, cur){
+  /* Echte Versionen aus dem nuget-Katalog (data.js), sonst die des Dokuments */
+  const p = allPacks().find(x=>x.n===name);
+  const opts = (p && p.vers && p.vers.length) ? p.vers.slice(0,6)
+             : {"VL.CoreLib":["Built-In"]}[name] || [cur];
+  const list = (cur && !opts.includes(cur)) ? [cur].concat(opts) : opts;
+  return `<select class="vsel">${list.map(v=>`<option${v===cur?" selected":""}>${v}</option>`).join("")}</select>`;
+}
+
+function refsContent(){
+  if(!state.doc){
+    return `<div class="emptybox"><b>References: no Document</b>
+      References gelten immer pro Dokument — das Fenster folgt dem im Editor geöffneten Dokument.<br>
+      Die <b>System-Übersicht</b> (installiert / Updates) ist im <b style="color:var(--accent)">Browser → Packs</b>.</div>
+      <div class="btnrow"><button class="btn primary sm${isHot("ref-newdoc")?" hot":""}" data-flow="ref-newdoc" id="newDoc">Neues Dokument erstellen</button></div>`;
+  }
+  const d = DOCS[state.doc];
+  const secBtn = (label, id, flowKey) =>
+    `<div class="sec" style="display:flex;align-items:center;gap:8px">${label}
+      <button class="btn sm${flowKey&&isHot(flowKey)?" hot":""}"${flowKey?` data-flow="${flowKey}"`:""} id="${id}" style="margin-left:auto">${label==="Packs"?"Browse":"Add…"}</button></div>`;
+
+  const refRow = (ico, name, meta) =>
+    `<div class="prow shot"><span class="sq">${ico}</span>
+      <div class="info"><div class="nm">${name}</div>${meta?`<div class="au">${meta}</div>`:""}</div>
+      <div class="side"><div class="l1"><span class="sdot ok"></span><span class="stt">✓ im Dokument</span></div>
+        <div class="l2"><span class="act"></span></div></div></div>`;
+
+  let html = secBtn("Packs","addPackBtn","ref-addpack");
+  d.packs.forEach(p=>{
+    html += `<div class="prow shot in"><span class="sq">${p.ico}</span>
+      <div class="info"><div class="nm">${p.n}</div><div class="au">vvvv · im Dokument</div></div>
+      <div class="side"><div class="l1"><span class="sdot ok"></span><span class="stt">✓ im Dokument</span>
+        ${p.shipped?'<span class="badge bi">Built-In</span>':""}</div>
+        <div class="l2"><span class="ver">${versionSelect(p.n,p.v)}</span>
+        <span class="act"></span></div></div></div>`;
+  });
+  if(state.packAdded && !state.removed){
+    html += `<div class="prow shot in" id="mqttRow"><span class="sq">▣</span>
+      <div class="info"><div class="nm">VL.IO.MQTT</div><div class="au">vvvv · gerade referenziert</div></div>
+      <div class="side"><div class="l1"><span class="sdot ok"></span><span class="stt">✓ im Dokument</span></div>
+        <div class="l2"><span class="ver">${versionSelect("VL.IO.MQTT","1.3.0")}</span>
+        <span class="act"></span></div></div></div>`;
+  }
+
+  html += secBtn("Files","addFileBtn",null);
+  if(d.files.length){
+    d.files.forEach(f=>{ html += refRow("▤", f.n, "Datei im Projektordner"); });
+  } else {
+    html += `<div style="padding:2px 7px;color:var(--faint)">—</div>`;
+  }
+
+  html += secBtn(".NET Framework Assemblies","addAsmBtn",null);
+  if(d.asm && d.asm.length){
+    d.asm.forEach(a=>{ html += refRow("▤", a.n, "v4.0.30319 · GAC"); });
+  } else {
+    html += `<div style="padding:2px 7px;color:var(--faint)">—</div>`;
+  }
+
+  html += `<div class="btnrow">
+      <button class="btn sm">Add Recent…</button>
+      <button class="btn sm${isHot("ref-remove")?" hot":""}" data-flow="ref-remove" id="remBtn">Remove</button>
+      <button class="btn sm">Refresh</button></div>
+    <div style="margin-top:9px;font-size:10.5px;color:var(--faint);line-height:1.65">
+      Packs, Files und Assemblies öffnen jeweils <b style="color:var(--muted)">dasselbe Overlay</b>
+      mit Suche, Version-Dropdown und Download-Zahl — ein Muster statt drei [10:00–10:14].</div>`;
+  return html;
+}
+
+/* ---------------------------------------------------------------------
+   Overlay im References-Fenster — dasselbe Muster wie bei .NET Assemblies
+   (Screencast [02:17] „wie hier ein Overlay“ / [10:00–10:14]).
+   --------------------------------------------------------------------- */
+const NUGET_PATH = "C:\\Users\\david\\AppData\\Local\\vvvv\\gamma\\nugets";
+
+function asmOverlayBody(){
+  const d = DOCS[state.doc];
+  const cur = (d && d.asm) ? d.asm.map(a=>a.n) : [];
+  const list = ["PresentationFramework.AeroLite","PresentationFramework","WindowsBase",
+                "System.Xaml","System.Drawing","ReachFramework","PresentationCore"];
+  let html = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:9px">
+      .NET-Assembly des Dokuments referenzieren — der Weg ohne NuGet [02:17].</div>
+    <input style="width:100%;background:#1a1a1a;border:1px solid #3f3f46;color:#d4d4d4;padding:5px 8px;font-size:11.5px;margin-bottom:10px" placeholder="search assemblies…">`;
+  list.forEach(n=>{
+    const has = cur.includes(n);
+    html += `<div class="prow${has?" in":""}">
+      <span class="nm">${n}</span>
+      <span class="dl">${has?"v4.0.30319":""}</span>
+      <span class="act">${has?'<span style="color:var(--green);font-size:11px">✓ im Dokument</span>':'<button class="btn sm">Add</button>'}</span></div>`;
+  });
+  return html;
+}
+
+function fileOverlayBody(){
+  const d = DOCS[state.doc];
+  const cur = d ? d.files.map(f=>f.n) : [];
+  const list = ["VL2D.Simplify.vl","patches\\utils.vl","lib\\helper.vl","assets\\logo.svg"];
+  let html = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:9px">
+      Datei ins Dokument referenzieren — bekommt seit jeher ein Overlay [10:00].</div>
+    <input style="width:100%;background:#1a1a1a;border:1px solid #3f3f46;color:#d4d4d4;padding:5px 8px;font-size:11.5px;margin-bottom:10px" placeholder="search files…">`;
+  list.forEach(n=>{
+    const has = cur.includes(n);
+    html += `<div class="prow${has?" in":""}">
+      <span class="nm">${n}</span>
+      <span class="dl"></span>
+      <span class="act">${has?'<span style="color:var(--green);font-size:11px">✓ im Dokument</span>':'<button class="btn sm">Add</button>'}</span></div>`;
+  });
+  return html;
+}
+
+function hideRefOverlay(){
+  state.refOverlay = null;
+  $("#overlay").classList.remove("on");
+  $("#dialog").className = "dialog";
+  $("#dialog").innerHTML = "";
+}
+function closeRefOverlay(){ hideRefOverlay(); render(); }
+
+/* Browse-Overlay: liegt NUR über dem References-Fenster (host), nicht über dem Editor */
+function paintRefOverlay(host){
+  const kind = state.refOverlay;
+  if(!kind) return;
+  const d = DOCS[state.doc];
+  const titles = {packs:"Browse Packs", asm:"Browse .NET Framework Assemblies",
+                  files:"Browse Files"};
+  const dg = el("div","refpanel");
+  dg.innerHTML = `
+    <div class="rp-head"><span>${kind==="packs"?"▣":"▤"}</span>${titles[kind]}
+      <span style="font-weight:400;color:var(--faint);font-size:11px">— ${d?d.label:"kein Dokument"}</span>
+      <button class="x" id="dlgX" title="Schließen">✕</button></div>
+    <div class="rp-body" id="dlgBody"></div>
+    <div class="rp-foot">
+      <span>Indexed at: ${PD.indexedAt}</span>
+      <button class="refresh" id="rpRefresh">Refresh</button>
+      <span class="stable"><input type="checkbox" checked style="margin:0"> Only Stable Versions</span></div>`;
+  const shade = el("div","refshade");
+  shade.onclick = closeRefOverlay;
+  host.appendChild(shade);
+  host.appendChild(dg);
+  dg.querySelector("#rpRefresh").onclick = ()=>toast("Index wird neu geladen — nuget.org");
+
+  dg.querySelector("#dlgX").onclick = closeRefOverlay;
+
+  const body = dg.querySelector("#dlgBody");
+  if(kind==="packs"){
+    body.appendChild(packBrowser("ref", {
+      onAdd: ()=>{
+        state.packAdded=true; state.removed=false;
+        hideRefOverlay();
+        if(!flowAdvance("pack-add")) render();
+        state.overlayShown=true; render();
+        toast("VL.IO.MQTT → jetzt referenziert");
+      },
+      onRemove: ()=>{
+        state.removed=true;
+        hideRefOverlay();
+        if(!flowAdvance("ref-remove")) render();
+        toast("VL.IO.MQTT aus dem Dokument entfernt — bleibt auf der Festplatte");
+      }
+    }));
+  } else {
+    body.appendChild(el("div","", kind==="asm" ? asmOverlayBody() : fileOverlayBody()));
+  }
+}
+
+function neuRefs(){
+  const wrap = el("div");
+  const d = state.doc ? DOCS[state.doc] : null;
+
+  const dock = dockPanel(
+    state.doc ? `References — ${d.label}` : "References",
+    state.doc ? "gedockt · pro Dokument" : "no Document",
+    refsContent());
+
+  if(state.refOverlay) paintRefOverlay(dock);
+  const body = editorShell(dockColumn("refs", dock));
+
+  /* Bestätigung nach Pack-Add (grünes Overlay wie beim File-Add, P7) */
+  if(state.overlayShown){
+    const ov = el("div","");
+    ov.style.cssText = "position:absolute;left:90px;top:74px;background:var(--panel2);border:1px solid var(--green);padding:12px 16px;box-shadow:0 14px 40px rgba(0,0,0,.5);z-index:20;font-size:12.5px;max-width:300px";
+    ov.innerHTML = `<div style="color:var(--green);font-weight:600;margin-bottom:3px">✓ VL.IO.MQTT referenziert</div>
+      <div style="color:var(--muted);font-size:11.5px">Wie bei Dateien und Assemblies: Add meldet sich mit Anker — P7 [10:14]</div>
+      <div class="btnrow"></div>`;
+    const jump = el("button","btn sm"+(isHot("ref-overlay")?" hot":""),"Zum Patch springen");
+    jump.dataset.flow = "ref-overlay";
+    const close = el("button","btn sm ghost","Schließen");
+    ov.querySelector(".btnrow").appendChild(jump);
+    ov.querySelector(".btnrow").appendChild(close);
+    body.style.position="relative";
+    body.appendChild(ov);
+    const done = ()=>{
+      state.overlayShown=false;
+      if(!flowAdvance("ref-overlay")) render();
+    };
+    jump.onclick = ()=>{ done(); toast("Springt zum MQTTClient-Node im Patch"); };
+    close.onclick = done;
+  }
+
+  wrap.appendChild(winShell("vvvv gamma", body));
+
+  /* Interaktionen (Dokument-Tabs hängen bereits in editorShell) */
+  wrap.querySelector("#newDoc")?.addEventListener("click", ()=>{
+    state.doc="callmenames";
+    if(!flowAdvance("ref-newdoc")) render();
+    toast("Dokument callmenames-2026-11-24.vl erstellt");
+  });
+  wrap.querySelector("#addPackBtn")?.addEventListener("click", ()=>{
+    state.refOverlay="packs";
+    if(!flowAdvance("ref-addpack")) render();
+  });
+  wrap.querySelector("#addAsmBtn")?.addEventListener("click", ()=>{
+    state.refOverlay="asm"; render();
+  });
+  wrap.querySelector("#addFileBtn")?.addEventListener("click", ()=>{
+    state.refOverlay="files"; render();
+  });
+  wrap.querySelector("#remBtn")?.addEventListener("click", ()=>{
+    if(!(state.packAdded && !state.removed)){ toast("Kein Pack zum Entfernen"); return; }
+    state.removed=true;
+    if(!flowAdvance("ref-remove")) render();
+    toast("VL.IO.MQTT aus dem Dokument entfernt — bleibt auf der Festplatte");
+  });
+
+  return wrap;
+}
+
+function neuSpout(){
+  const wrap = el("div");
+  const body = el("div");
+  body.innerHTML = `
+    <div style="padding:18px; max-width:560px; text-align:center; padding-top:40px">
+      <div style="font-size:26px; margin-bottom:10px">▦</div>
+      <div style="font-size:14px; font-weight:600; margin-bottom:6px">Spout Monitor</div>
+      <div style="color:var(--muted); font-size:12px; line-height:1.7">
+        <b style="color:var(--green)">✓ Extension installiert</b> (VL.SpoutMonitor.HDE 2.0.1)<br>
+        Kein Spout-Eingang erkannt — sendet eine App mit aktivem Spout-Output,
+        erscheint sie hier automatisch.</div>
+      <div class="btnrow" style="justify-content:center; margin-top:16px">
+        <button class="btn sm">Was ist Spout?</button>
+        <button class="btn sm">Extension-Details</button>
+      </div>
+    </div>`;
+  const win = winShell("Spout Monitor", body, "via Anker geöffnet");
+  win.style.cssText = "position:absolute;left:50%;top:46px;transform:translateX(-50%);width:540px;z-index:15";
+  wrap.appendChild(winShell("vvvv gamma", editorShell(win)));
+  return wrap;
+}
+
+/* =====================================================================
+   Rendering / Navigation / Flows
+   ===================================================================== */
+/* =====================================================================
+   VERSION 2 — gleichrangige, andockbare Fenster
+   Layout = Baum aus Spalten (split), Tab-Stapeln (stack) und der Canvas-Fläche.
+   Andocken: Fenster an der Titelleiste ziehen. Rand des Ziels teilt, Mitte stapelt.
+   ===================================================================== */
+const isV2 = ()=> state.version==="v2";
+const V2WIN = {
+  home:    {title:"Welcome",    build:()=>v2Inner(neuHome)},
+  help:    {title:"Help",       build:()=>v2Help()},
+  packs:   {title:"Packs",      build:()=>v2Inner(neuPacks)},
+  ext:     {title:"Extensions", build:()=>v2Inner(neuExt)},
+  settings:{title:"Settings",   build:()=>v2Settings()},
+  refs:    {title:"References", build:()=>v2Refs(),
+            sub:()=> DOCS[state.doc] ? DOCS[state.doc].label : "no Document"}
+};
+const V2MAP = {"neu-home":"home","neu-help":"help","neu-packs":"packs","neu-ext":"ext","neu-spout":"ext",
+               "neu-settings":"settings","neu-refs":"refs","neu-shortcuts":"help"};
+
+function v2Root(){
+  if(!state.v2) state.v2 = {t:"split", dir:"h", kids:[{t:"canvas"}, {t:"stack", tabs:["refs","help"], active:"help"}]};
+  return state.v2;
+}
+function v2Find(n, id){
+  if(n.t==="stack") return n.tabs.includes(id) ? n : null;
+  if(n.t==="split") for(const k of n.kids){ const f = v2Find(k,id); if(f) return f; }
+  return null;
+}
+function v2First(n){
+  if(n.t==="stack") return n;
+  if(n.t==="split") for(const k of n.kids){ const f = v2First(k); if(f) return f; }
+  return null;
+}
+/* Fenster aus dem Baum nehmen; leere Stapel und Splits mit nur einem Kind fallen weg */
+function v2Remove(n, id){
+  if(n.t==="stack"){
+    const i = n.tabs.indexOf(id);
+    if(i<0) return n;
+    n.tabs.splice(i,1);
+    if(n.active===id) n.active = n.tabs[0] || null;
+    return n.tabs.length ? n : null;
+  }
+  if(n.t==="split"){
+    n.kids = n.kids.map(k=>v2Remove(k,id)).filter(Boolean);
+    if(!n.kids.length) return null;
+    return n.kids.length===1 ? n.kids[0] : n;
+  }
+  return n;
+}
+/* Ziel-Leaf durch einen Split ersetzen: Rand links/oben setzt das neue Fenster davor, sonst danach */
+function v2Wrap(n, leaf, ns, pos){
+  if(n===leaf){
+    const dir = (pos==="left" || pos==="right") ? "h" : "v";
+    return {t:"split", dir, kids: (pos==="left" || pos==="top") ? [ns, leaf] : [leaf, ns]};
+  }
+  if(n.t==="split") n.kids = n.kids.map(k=>v2Wrap(k, leaf, ns, pos));
+  return n;
+}
+function v2Move(id, leaf, pos){
+  const src = v2Find(state.v2, id);
+  if(src===leaf && (pos==="center" || src.tabs.length===1)) return;
+  const root = v2Remove(state.v2, id);
+  if(pos==="center"){
+    leaf.tabs.push(id); leaf.active = id;
+    state.v2 = root;
+  } else {
+    state.v2 = v2Wrap(root, leaf, {t:"stack", tabs:[id], active:id}, pos);
+  }
+}
+function v2Open(id){
+  v2Root();
+  const st = v2Find(state.v2, id);
+  if(st){ st.active = id; return; }
+  const f = v2First(state.v2);
+  if(f){ f.tabs.push(id); f.active = id; }
+  else state.v2 = {t:"split", dir:"h", kids:[state.v2, {t:"stack", tabs:[id], active:id}]};
+}
+/* Flow- und Navigationsschritte öffnen das passende Fenster */
+function v2Focus(screen){
+  const w = V2MAP[screen];
+  if(!w) return;
+  if(screen==="neu-shortcuts") state.helpView = "shortcuts";
+  v2Open(w);
+}
+
+/* Zielzone unter dem Zeiger: Rand (25 %) teilt, Mitte stapelt, Canvas nimmt keine Mitte */
+function v2Pick(x, y){
+  let best = null;
+  document.querySelectorAll(".v2root [data-leaf]").forEach(l=>{
+    const r = l.getBoundingClientRect();
+    if(x<r.left || x>r.right || y<r.top || y>r.bottom) return;
+    const rx = (x-r.left)/r.width, ry = (y-r.top)/r.height;
+    let pos = "center";
+    if(ry<0.25) pos = "top"; else if(ry>0.75) pos = "bottom";
+    else if(rx<0.25) pos = "left"; else if(rx>0.75) pos = "right";
+    if(l._node.t==="canvas" && pos==="center") return;
+    const hl = {
+      top:[r.left, r.top, r.width, r.height*0.25],
+      bottom:[r.left, r.bottom-r.height*0.25, r.width, r.height*0.25],
+      left:[r.left, r.top, r.width*0.25, r.height],
+      right:[r.right-r.width*0.25, r.top, r.width*0.25, r.height],
+      center:[r.left+r.width*0.25, r.top+r.height*0.25, r.width*0.5, r.height*0.5]}[pos];
+    best = {node:l._node, pos, r:{left:hl[0], top:hl[1], width:hl[2], height:hl[3]}};
+  });
+  return best;
+}
+let v2Dragged = false;
+function v2Drag(e, id){
+  if(e.button!==0) return;
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY;
+  let moved = false, hit = null, hl = null;
+  const mv = ev=>{
+    if(!moved){
+      if(Math.hypot(ev.clientX-sx, ev.clientY-sy) < 6) return;
+      moved = true;
+      hl = el("div","vhl");
+      document.body.appendChild(hl);
+    }
+    hit = v2Pick(ev.clientX, ev.clientY);
+    if(!hit){ hl.style.display = "none"; return; }
+    Object.assign(hl.style, {display:"block", left:hit.r.left+"px", top:hit.r.top+"px",
+                             width:hit.r.width+"px", height:hit.r.height+"px"});
+  };
+  const up = ()=>{
+    window.removeEventListener("pointermove", mv);
+    window.removeEventListener("pointerup", up);
+    if(hl) hl.remove();
+    if(!moved) return;
+    v2Dragged = true; setTimeout(()=>v2Dragged=false, 0);
+    if(hit) v2Move(id, hit.node, hit.pos);
+    render();
+  };
+  window.addEventListener("pointermove", mv);
+  window.addEventListener("pointerup", up);
+}
+
+function v2Node(n){
+  if(n.t==="stack") return v2Stack(n);
+  if(n.t==="canvas"){
+    const c = el("div","canvas");
+    c.dataset.leaf = "1"; c._node = n;
+    c.innerHTML = canvasHTML() + `<div class="statusbar" style="position:absolute;bottom:0;left:0;right:0">
+      <span>Public Channels${state.doc?": 2 aktiv":": no App"}</span><span style="margin-left:auto">Console Output</span></div>`;
+    return c;
+  }
+  const d = el("div","vsplit");
+  d.style.flexDirection = n.dir==="h" ? "row" : "column";
+  n.kids.forEach(k=>{
+    const e = v2Node(k);
+    e.style.flex = (k.t==="stack" && n.dir==="h") ? "0 0 min(640px, 52%)" : "1 1 0";
+    d.appendChild(e);
+  });
+  return d;
+}
+function v2Stack(n){
+  const s = el("div","vstack");
+  s.dataset.leaf = "1"; s._node = n;
+  const w = V2WIN[n.active];
+  const head = el("div","win-title vhead");
+  head.innerHTML = `<span class="name">${w.title}</span>
+    <span style="margin-left:auto;font-size:10px;color:var(--faint)">${w.sub ? w.sub() : "gedockt · Titel ziehen zum Andocken"}</span>
+    <button class="wclose" title="Schließen">✕</button>`;
+  head.onpointerdown = e=>{ if(!e.target.closest(".wclose")) v2Drag(e, n.active); };
+  head.querySelector(".wclose").onclick = ()=>{ state.v2 = v2Remove(state.v2, n.active); render(); };
+  const body = el("div","vbody");
+  body.appendChild(w.build());
+  const tabs = el("div","btabs");
+  n.tabs.forEach(id=>{
+    const b = el("button", id===n.active ? "on" : "", V2WIN[id].title);
+    b.onpointerdown = e=>{ e.stopPropagation(); v2Drag(e, id); };
+    b.onclick = ()=>{ if(v2Dragged) return; n.active = id; render(); };
+    tabs.appendChild(b);
+  });
+  s.appendChild(head); s.appendChild(body); s.appendChild(tabs);
+  return s;
+}
+
+/* Inhalt eines bestehenden Fensters übernehmen (Tabpane ohne eigene Fensterleiste) */
+function v2Inner(fn){
+  const full = fn();
+  const c = el("div","vcol");
+  c.appendChild(full.querySelector(".win.dockwin .tabpane") || full);
+  return c;
+}
+function v2Refs(){
+  const full = neuRefs();
+  const c = el("div","vcol");
+  c.appendChild(full.querySelector(".win.dockwin .tabpane"));
+  if(state.refOverlay) paintRefOverlay(c);
+  return c;
+}
+function v2Help(){
+  const c = el("div","vcol");
+  const sw = el("div","fswitch");
+  sw.innerHTML = `<span class="fl">Follow-Mode</span>
+    <span class="fhint">${state.followOpen ? "Selektiere ein Node im Patch — passende Help-Patches erscheinen hier" : "aus"}</span>
+    <button class="switch${state.followOpen?" on":""}" title="Follow-Mode"><i></i></button>`;
+  const sb = sw.querySelector(".switch");
+  sb.onclick = ()=>{
+    state.followOpen = !state.followOpen;
+    if(!flowAdvance("follow-card")) render();
+  };
+  if(isHot("follow-card")) hot(sb, "follow-card");
+  c.appendChild(sw);
+  c.appendChild(neuHelp().querySelector(".win.dockwin .tabpane"));
+  return c;
+}
+
+/* Settings: Theme-Switcher oben, dann die Gruppen aus dem vvvv-Settings-Fenster */
+const SETTINGS_V2 = [
+  ["General", [["Show Learn tab when opening Helpbrowser",1],["Auto backup",0,"btn:Backup Folder"],
+               ["Auto backup period",0,"num:5"],["Use WARP device for editor UI",0]]],
+  ["Debug", [["Pause on error",0],["Jump to error",0]]],
+  ["Patch", [["Show grid and origin",0],["Mouse wheel zooms",1],["Press SPACE to pan",0],["Browsable packages",1],
+             ["Show assignment-icon on nodes",0],["IOBox editable with left mouse button",0],
+             ["IOBox defaults to horizontal drag",0],["Snapping",1],["Show Snapping Guide",0]]],
+  ["Links", [["Show Tooltip",1],["Dragging on connector starts link",0],["Dropping a link creates element",0],
+             ["Enable auto link segmentation",1],["DragStart area",0,"num:4"],["LinkSnapping area Size",0,"num:25"],
+             ["LinkSnapping area size small",0,"num:16"]]],
+  ["Node Browser", [["Enable Connectable Nodes mode",0],["Enable advanced aspect",0],["Enable experimental aspect",0],
+                    ["Enable external aspect",1],["When in doubt show pin choices",0],["Size",0,"num:460 x 480"],
+                    ["Show Tooltip",1]]]
+];
+function v2Settings(){
+  const c = el("div","vcol");
+  const p = el("div","tabpane on setv2");
+  p.innerHTML = `<div class="sg-h">Default</div>
+    ${[["dark","dark"],["light","light"],["hc","high contrast"]].map(([k,l])=>
+      `<label class="opt"><input type="radio" name="thv2" value="${k}"${state.theme===k?" checked":""}> ${l}</label>`).join("")}
+    <div class="sg-h" style="margin-top:14px">Custom themes folder</div>
+    <div class="pathrow"><span class="pathtxt">C:\\Users\\ich\\Documents\\vvvv\\gamma-preview\\Themes</span><button class="btn sm">Explore</button></div>
+    <button class="btn sm" style="margin-top:6px">Help</button>
+    <input class="fsearch setfilter" placeholder="FILTER BY" style="width:100%;margin:16px 0 2px">`;
+  p.querySelectorAll("input[name=thv2]").forEach(r=>{
+    r.onchange = ()=>{
+      state.theme = r.value;
+      if(r.value==="dark") delete document.body.dataset.theme; else document.body.dataset.theme = r.value;
+      render();
+    };
+  });
+  SETTINGS_V2.forEach(([g, rows])=>{
+    p.appendChild(el("div","grp",g));
+    rows.forEach(([label, on, extra])=>{
+      const r = el("label","opt srow");
+      r.dataset.l = label.toLowerCase();
+      let tail = "";
+      if(extra && extra.startsWith("num:")) tail = `<input class="num" value="${extra.slice(4)}">`;
+      if(extra && extra.startsWith("btn:")) tail = `<button class="btn sm">${extra.slice(4)}</button>`;
+      r.innerHTML = `<input type="checkbox"${on?" checked":""}> <span class="lt">${label}</span>${tail}`;
+      p.appendChild(r);
+    });
+  });
+  p.querySelector(".setfilter").oninput = e=>{
+    const q = e.target.value.trim().toLowerCase();
+    p.querySelectorAll(".srow").forEach(r=>r.style.display = r.dataset.l.includes(q) ? "" : "none");
+  };
+  c.appendChild(p);
+  return c;
+}
+
+/* Help: Shortcuts und Community & Links als Bereiche in der Sidebar */
+const COMMUNITY = [
+  ["Forum","Where you find answers to your vvvv questions"],
+  ["Meetups","Meet fellow patchers in real life for presentations and drinks"],
+  ["News","News blog on vvvv.org"],
+  ["Mastodon","Follow vvvv on the fediverse: Where you get the latest bite-size news around vvvv"],
+  ["Pixelfed","Follow the vvvv community account on the fediverse: Where you see screenshots uploaded by fellow patchers"],
+  ["Edus","Educational institutions using vvvv in class"],
+  ["LinkedIn","Follow vvvv on LinkedIn"],
+  ["LinkedIn Group","Join the vvvv user group on LinkedIn"],
+  ["Jobs","Have a vvvv job to offer? Post it here for all patchers to see"],
+  ["Businesses","Get exposure for your own vvvv business or find others near by"],
+  ["Gallery","The vvvv gallery to share your projects"],
+  ["Vimeo","Follow vvvv on Vimeo"],
+  ["YouTube","Tutorials, HowTo Videos, vvvv Meetup Live Streams and more"]];
+function helpCommunityEl(){
+  const c = el("div","comm");
+  c.innerHTML = `<div class="ctitle">Meet your fellow patchers and stay on top of the latest happenings in the univvvverse!</div>
+    <div class="csub">Links open in your browser:</div>
+    <div class="cchat"><button class="cbtn cbig">Chat (EN)</button>
+      <div class="ctext">Main chat in English, where patchers hang out 24/7 to help each other. Prefer a different language? Join one of these rooms:</div>
+      <div class="rooms">${["ES","DE","FR","JP","RU","FARSI","HU"].map(r=>`<button class="cbtn room">${r}</button>`).join("")}</div></div>
+    ${COMMUNITY.map(([n,d])=>`<div class="crow"><button class="cbtn">${n}</button><span class="cdesc">${d}</span></div>`).join("")}`;
+  c.querySelectorAll(".cbtn").forEach(b=>b.onclick = ()=>toast(`Öffnet im Browser: ${b.textContent}`));
+  return c;
+}
+function helpShortcutsEl(){
+  const sp = neuShortcuts().querySelector(".tabpane");
+  sp.className = "hsc";
+  return sp;
+}
+
+/* Version 2: Fenster-Schalter oben, darunter das Dock-Layout im vvvv-Fenster */
+function v2Screen(){
+  v2Root();
+  const wrap = el("div","vwrap");
+  const bar = el("div","v2bar");
+  bar.innerHTML = `<span class="lbl">Fenster:</span>`;
+  [["home","Welcome"],["help","Help"],["packs","Packs"],["ext","Extensions"],["settings","Settings"],["refs","References"]]
+    .forEach(([k,l])=>{
+      const open = !!v2Find(state.v2, k);
+      const b = el("button", open?"on":"", l);
+      b.onclick = ()=>{
+        if(k==="help" && isHot("tab-help")){ v2Open(k); flowAdvance("tab-help"); return; }
+        if(open) state.v2 = v2Remove(state.v2, k); else v2Open(k);
+        render();
+      };
+      if(k==="help" && isHot("tab-help")) hot(b, "tab-help");
+      bar.appendChild(b);
+    });
+  const full = editorShell(null);
+  const app = full.querySelector(".app");
+  app.innerHTML = "";
+  const root = el("div","v2root");
+  root.appendChild(v2Node(v2Root()));
+  app.appendChild(root);
+  wrap.appendChild(bar);
+  wrap.appendChild(winShell("vvvv gamma", full));
+  return wrap;
+}
+
+function setScreen(id){
+  state.screen = id;
+  if(isV2()) v2Focus(id);
+  /* Untere Tabs der Dock-Spalte: „Browser“ merkt sich den zuletzt offenen Tab */
+  if(["neu-home","neu-help","neu-packs","neu-ext","neu-shortcuts"].includes(id))
+    state.lastBrowser = id;
+  if(id==="neu-settings") state.settingsOpen = true;
+  const sc = SCREENS.find(s=>s.id===id);
+  render();
+}
+function goto(id){ setScreen(id); }
+
+function flowAdvance(key){
+  if(!state.flow) return false;
+  const st = FLOWS[state.flow].steps[state.step];
+  if(st.key !== key) return false;
+  state.step++;
+  if(state.step >= FLOWS[state.flow].steps.length){
+    const name = FLOWS[state.flow].label;
+    state.flow=null; state.step=0;
+    render(); showFlowDone(name);
+    return true;
+  }
+  const nxt = FLOWS[state.flow].steps[state.step];
+  if(nxt.screen !== state.screen) state.screen = nxt.screen;
+  if(isV2()) v2Focus(state.screen);
+  render();
+  return true;
+}
+
+function showFlowDone(name){
+  const d = el("div","flowdone on");
+  d.innerHTML = `<b>✓ Flow abgeschlossen: ${name}</b><br>
+    <span style="color:var(--muted)">Starte ihn jederzeit links erneut — oder probiere einen anderen Flow.</span>`;
+  $("#viewport").prepend(d);
+}
+
+function startFlow(id){
+  clearInterval(extTimer);
+  hideRefOverlay();
+  state.flow=id; state.step=0;
+  if(id==="ref"){ state.doc=null; state.packAdded=false;
+                  state.overlayShown=false; state.removed=false; state.refExtra=[]; }
+  if(id==="ext"){ state.ext={phase:"idle", pct:0}; }
+  if(id==="learn"){ state.helpTypes=[]; state.helpPack="all"; state.helpSearch="";
+                    state.helpDl=null; state.followOpen=false; state.helpOpen=null; }
+  if(id==="tour"){ state.updatesDone=false; state.doc="callmenames";
+                   state.packAdded=false; state.overlayShown=false; state.removed=false;
+                   state.discDetail=null; state.packUI=null; }
+  if(id==="disc"){ state.installed=null; state.newlyInstalled=null; state.installing=null;
+                   state.discDetail=null; state.packUI=null; }
+  setScreen(FLOWS[id].steps[0].screen);
+}
+function cancelFlow(){ clearInterval(extTimer); hideRefOverlay(); state.flow=null; state.step=0; render(); }
+
+function render(){
+  clearTimeout(autoTimer);
+
+  /* Topbar-Flow */
+  const fb = $("#flowbar");
+  if(state.flow){
+    const f = FLOWS[state.flow], st = f.steps[state.step];
+    fb.classList.add("on");
+    $("#flowSteps").textContent = `${f.label} · Schritt ${state.step+1}/${f.steps.length}`;
+    const hint = (isV2() && st.key==="follow-card") ? "Schalte den Follow-Mode ein — Schalter oben im Help-Fenster" : st.hint;
+    $("#flowHint").innerHTML = `<span class="stepchip">Jetzt</span>${hint}`;
+  } else fb.classList.remove("on");
+
+  /* Sidebar */
+  const sb = $("#sidebar"); sb.innerHTML="";
+  sb.appendChild(el("div","side-group","Flows (klickbar)"));
+  Object.entries(FLOWS).forEach(([k,f])=>{
+    const b = el("button","nav flow"+(state.flow===k?" on":""), f.label);
+    b.onclick = ()=>startFlow(k); sb.appendChild(b);
+  });
+  [["neu","Vorschlag"]].forEach(([m,label])=>{
+    sb.appendChild(el("div","side-group",label));
+    SCREENS.filter(s=>s.mode===m).forEach(s=>{
+      const b = el("button","nav"+(state.screen===s.id?" on":""));
+      b.innerHTML = s.label + ` <span class="tag ${m}">${s.tag}</span>`;
+      b.onclick = ()=>setScreen(s.id);
+      sb.appendChild(b);
+    });
+  });
+
+  /* Screen */
+  const sc = SCREENS.find(s=>s.id===state.screen) || SCREENS[0];
+  const vp = $("#viewport"); vp.innerHTML="";
+  const nk = isV2() ? "v2" : sc.note;
+  vp.appendChild(el("div","screen-title", NOTES[nk].t));
+  vp.appendChild(el("div","screen-sub", NOTES[nk].s));
+  vp.appendChild(isV2() ? v2Screen() : sc.build());
+  $("#verSeg").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.ver===state.version));
+  vp.scrollTop = 0;
+
+  /* Notes */
+  const n = NOTES[isV2() ? "v2" : sc.note];
+  const nt = $("#notes"); nt.innerHTML="";
+  nt.appendChild(el("h3",null,n.t));
+  nt.appendChild(el("div","sub",n.s));
+  n.p.forEach(p=>nt.appendChild(el("p",null,p)));
+  nt.appendChild(el("div","legend",
+    `<b style="color:var(--muted)">Pain Points:</b><br>
+     P1 System-Übersicht · P2 Fenster-Rollen · P3 Extensions-Feedback<br>
+     P4 Redundanz · P5 Taxonomie/Filter · P6 Discovery<br>
+     P7 Add-Feedback · P8 Explore-Perspektive<br><br>
+     <span style="color:var(--accent)">Orange Rahmen</span> = aktiver Flow-Schritt.`));
+
+
+  /* __auto__-Schritt */
+  if(state.flow){
+    const st = FLOWS[state.flow].steps[state.step];
+    if(st.key==="__auto__"){
+      autoTimer = setTimeout(()=>{
+        if(state.flow && FLOWS[state.flow].steps[state.step]?.key==="__auto__")
+          flowAdvance("__auto__");
+      }, 1600);
+    }
+  }
+}
+
+/* Versions-Umschalter: Version 1 (Tabs) und Version 2 (dockbare Fenster) */
+$("#verSeg").querySelectorAll("button").forEach(b=>{
+  b.onclick = ()=>{ state.version = b.dataset.ver; render(); };
+});
+
+$("#flowCancel").onclick = cancelFlow;
+
+/* Klick auf den Hintergrund schließt das References-Overlay (aber nicht den Ist-Dialog) */
+$("#overlay").addEventListener("click", e=>{
+  if(e.target.id==="overlay" && state.refOverlay) closeRefOverlay();
+});
+
+render();
+</script>
+</body>
+</html>
